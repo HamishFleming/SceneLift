@@ -11,6 +11,7 @@ src/bgremoval/__main__.py
 src/bgremoval/api.py
 src/bgremoval/benchmark.py
 src/bgremoval/cli.py
+src/bgremoval/extract_frames.py
 src/bgremoval/health.py
 src/bgremoval/healthcheck.py
 src/bgremoval/io.py

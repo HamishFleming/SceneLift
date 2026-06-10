@@ -15,6 +15,10 @@ from ..logging_controller import get_logger
 
 logger = get_logger(__name__)
 _MODEL_SPECS: Dict[str, ModelSpec] = {}
+_METHOD_ALIASES = {
+    "modnet": "modnet-trt",
+    "ben2": "ben2-trt",
+}
 
 
 def register_model(spec: ModelSpec) -> ModelSpec:
@@ -25,7 +29,7 @@ def register_model(spec: ModelSpec) -> ModelSpec:
 
 def get_model_spec(key: str) -> ModelSpec:
     _register_defaults()
-    normalized = key.strip().lower()
+    normalized = _METHOD_ALIASES.get(key.strip().lower(), key.strip().lower())
     try:
         return _MODEL_SPECS[normalized]
     except KeyError as exc:
@@ -150,7 +154,7 @@ def _register_defaults() -> None:
 
 def create_remover(name: str):
     _register_defaults()
-    normalized = name.strip().lower()
+    normalized = _METHOD_ALIASES.get(name.strip().lower(), name.strip().lower())
     logger.info("Selecting remover method %s", normalized)
     if normalized == "grabcut":
         return GrabCutRemover()

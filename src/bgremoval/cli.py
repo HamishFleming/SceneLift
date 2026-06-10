@@ -4,7 +4,7 @@ import argparse
 
 from .logging_controller import get_logger, setup_logging
 from .io import is_image_output, parse_source
-from .methods import create_remover
+from .methods import available_method_choices, create_remover
 from .live import LiveConfig, run_live_virtualcam
 from .pipeline import RunConfig, run_image_file, run_video_or_camera
 
@@ -42,7 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--method",
         default="grabcut",
-        choices=["grabcut", "rembg", "birefnet", "u2net-human-seg", "mediapipe-selfie-segmentation"],
+        choices=available_method_choices(),
         help="Background removal method to use",
     )
     parser.add_argument(

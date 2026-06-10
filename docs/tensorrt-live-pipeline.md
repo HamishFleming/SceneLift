@@ -24,6 +24,7 @@ The preferred layout is:
 - Keep the model and execution context alive for the lifetime of the process.
 - Reuse pagelocked host buffers and device buffers.
 - Bind TensorRT tensor addresses once at startup.
+- Create and hold an active CUDA context for the lifetime of the TensorRT session.
 - Keep only the newest webcam frame when inference lags behind capture.
 - Downscale to a practical live resolution before inference if needed.
 
@@ -49,3 +50,5 @@ The existing Python package already supports:
 - file and JSON logging
 
 The repository now includes a TensorRT helper layer and a MODNet scaffold matching the export -> build -> runtime pattern.
+
+The runtime creates the CUDA context from the first visible CUDA device before deserializing the engine, so the PyCUDA stream and TensorRT execution context share a valid device context.

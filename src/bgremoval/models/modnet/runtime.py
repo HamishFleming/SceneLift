@@ -76,6 +76,7 @@ def run_modnet_loopback(config: ModNetRuntimeConfig) -> None:
         _write_loop(session, config, lambda rgba: out_cam.write(cv2.cvtColor(rgba, cv2.COLOR_BGRA2BGR)))
     finally:
         out_cam.release()
+        session.close()
 
 
 def run_modnet_srt(config: ModNetRuntimeConfig) -> None:
@@ -126,6 +127,7 @@ def run_modnet_srt(config: ModNetRuntimeConfig) -> None:
     finally:
         ffmpeg.stdin.close()
         ffmpeg.wait()
+        session.close()
 
 
 def build_parser() -> argparse.ArgumentParser:

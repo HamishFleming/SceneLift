@@ -33,6 +33,8 @@ virtualcam = ["pyvirtualcam"]
 
 [project.scripts]
 bgremoval = "bgremoval.cli:main"
+bgremove = "bgremoval.cli:main"
+bgremoval-extract-frames = "bgremoval.extract_frames:main"
 bgremoval-benchmark = "bgremoval.benchmark:main"
 bgremoval-healthcheck = "bgremoval.healthcheck:main"
 modnet-export = "bgremoval.models.modnet.export_onnx:main"

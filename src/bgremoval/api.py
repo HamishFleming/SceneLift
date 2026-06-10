@@ -29,7 +29,9 @@ def run(
     Args:
         input_source: File path, camera spec like ``camera:0``, or device index string.
         output: Output file path or ``virtualcam``.
-        method: One of ``grabcut``, ``rembg``, ``birefnet``, ``u2net-human-seg``, or ``mediapipe-selfie-segmentation``.
+        method: One of ``grabcut``, ``rembg``, ``birefnet``, ``u2net-human-seg``, ``mediapipe-selfie-segmentation``,
+            ``modnet``, or ``ben2``. ``modnet`` and ``ben2`` are shorthand aliases for ``modnet-trt`` and
+            ``ben2-trt`` respectively.
         background_color: RGB tuple used for non-transparent outputs.
         max_frames: Optional frame limit for camera/video inputs.
         virtualcam_device: Optional device name passed to ``pyvirtualcam``.

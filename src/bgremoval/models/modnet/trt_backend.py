@@ -46,3 +46,7 @@ class ModNetTensorRTRemover:
         matte = out.reshape(self.input_size[1], self.input_size[0])
         matte = np.clip(matte, 0.0, 1.0)
         return self._postprocess(frame_bgr, matte)
+
+    def close(self) -> None:
+        if self.session is not None:
+            self.session.close()

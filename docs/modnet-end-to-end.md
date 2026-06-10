@@ -47,7 +47,9 @@ modnet-zero-copy --engine-path src/bgremoval/models/weights/modnet/modnet.engine
 ## Package integration
 
 - The shared model registry now knows about `modnet-trt`.
+- The top-level `bgremoval` CLI also accepts `--method modnet` as a shorthand for `modnet-trt`.
 - The TensorRT helper layer lives in `src/bgremoval/models/tensorrt/`.
 - The runtime stays local and loads the engine once.
+- The TensorRT session now creates and owns the active PyCUDA device context before it allocates buffers or streams.
 - Xenova/modnet is the preferred ONNX source for this path.
 - The build step now reads the source repo and ONNX filename from the model registry metadata.

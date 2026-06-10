@@ -38,6 +38,7 @@ ben2-run --mode srt --srt-url "srt://host:9000?mode=caller&latency=200000"
 ## Notes
 
 - BEN2 is registered in the shared model registry under `ben2-trt`.
+- The top-level `bgremoval` CLI also accepts `--method ben2` as a shorthand for `ben2-trt`.
 - The model source is `onnx-community/BEN2-ONNX`.
 - The ONNX file exposed by the repository is `onnx/model_fp16.onnx`.
 - The runtime scaffold uses the shared TensorRT live pipeline and can be tuned further once the ONNX graph is validated end to end.

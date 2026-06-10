@@ -32,6 +32,15 @@ def _split_bgr(rgba: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return bgr, alpha
 
 
+def _resize_rgba(rgba: np.ndarray, target_shape: tuple[int, int]) -> np.ndarray:
+    target_height, target_width = target_shape
+    if rgba.shape[:2] == (target_height, target_width):
+        return rgba
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug("Resizing backend output from %s to %s", rgba.shape[:2], target_shape)
+    return cv2.resize(rgba, (target_width, target_height), interpolation=cv2.INTER_LINEAR)
+
+
 def composite_frame(rgba: np.ndarray, background_color: tuple[int, int, int]) -> np.ndarray:
     if rgba.ndim != 3 or rgba.shape[2] != 4:
         raise ValueError("Expected RGBA frame")
@@ -39,6 +48,12 @@ def composite_frame(rgba: np.ndarray, background_color: tuple[int, int, int]) ->
     bg = np.full_like(bgr, background_color, dtype=np.uint8)
     blended = (bgr.astype(np.float32) * alpha + bg.astype(np.float32) * (1.0 - alpha)).astype(np.uint8)
     return blended
+
+
+def _close_remover(remover: BackgroundRemover) -> None:
+    close = getattr(remover, "close", None)
+    if callable(close):
+        close()
 
 
 def save_image(output_path: str, rgba: np.ndarray, background_color: tuple[int, int, int]) -> None:
@@ -58,8 +73,12 @@ def run_image_file(input_path: str, output_path: str, remover: BackgroundRemover
     image = cv2.imread(input_path, cv2.IMREAD_COLOR)
     if image is None:
         raise RuntimeError(f"Could not read image: {input_path}")
-    rgba = remover.remove(image)
-    save_image(output_path, rgba, background_color)
+    try:
+        rgba = remover.remove(image)
+        rgba = _resize_rgba(rgba, image.shape[:2])
+        save_image(output_path, rgba, background_color)
+    finally:
+        _close_remover(remover)
 
 
 def run_video_or_camera(config: RunConfig) -> None:
@@ -112,6 +131,7 @@ def run_video_or_camera(config: RunConfig) -> None:
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug("Frame %d input_shape=%s", frame_count + 1, getattr(frame, "shape", None))
             rgba = config.method.remove(frame)
+            rgba = _resize_rgba(rgba, frame.shape[:2])
             bgr = composite_frame(rgba, config.background_color)
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug("Frame %d output_shape=%s", frame_count + 1, getattr(bgr, "shape", None))
@@ -135,4 +155,5 @@ def run_video_or_camera(config: RunConfig) -> None:
             writer.release()
         if "virtualcam" in locals() and virtualcam is not None:
             virtualcam.close()
+        _close_remover(config.method)
         logger.info("Stream processing finished")

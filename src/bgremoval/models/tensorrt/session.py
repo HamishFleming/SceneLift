@@ -38,6 +38,7 @@ class TensorRTIOBinding:
 class TensorRTSession:
     engine: Any
     context: Any
+    cuda_context: Any
     stream: Any
     inputs: list[TensorRTIOBinding]
     outputs: list[TensorRTIOBinding]
@@ -49,54 +50,83 @@ class TensorRTSession:
 
         path = Path(engine_path)
         logger.info("Loading TensorRT engine from %s", path)
-        runtime = trt.Runtime(trt.Logger(trt.Logger.WARNING))
-        with path.open("rb") as f:
-            engine_bytes = f.read()
-        engine = runtime.deserialize_cuda_engine(engine_bytes)
-        if engine is None:
-            raise RuntimeError(f"Could not deserialize TensorRT engine: {path}")
+        cuda.init()
+        if cuda.Device.count() <= 0:
+            raise RuntimeError("No CUDA devices are available for TensorRT execution")
+        device = cuda.Device(0)
+        cuda_context = device.make_context()
+        try:
+            runtime = trt.Runtime(trt.Logger(trt.Logger.WARNING))
+            with path.open("rb") as f:
+                engine_bytes = f.read()
+            engine = runtime.deserialize_cuda_engine(engine_bytes)
+            if engine is None:
+                raise RuntimeError(f"Could not deserialize TensorRT engine: {path}")
 
-        context = engine.create_execution_context()
-        if context is None:
-            raise RuntimeError("Could not create TensorRT execution context")
+            context = engine.create_execution_context()
+            if context is None:
+                raise RuntimeError("Could not create TensorRT execution context")
 
-        stream = cuda.Stream()
-        inputs: list[TensorRTIOBinding] = []
-        outputs: list[TensorRTIOBinding] = []
+            stream = cuda.Stream()
+            inputs: list[TensorRTIOBinding] = []
+            outputs: list[TensorRTIOBinding] = []
 
-        for index in range(engine.num_io_tensors):
-            name = engine.get_tensor_name(index)
-            shape = engine.get_tensor_shape(name)
-            dtype = trt.nptype(engine.get_tensor_dtype(name))
-            size = trt.volume(shape)
-            host = cuda.pagelocked_empty(size, dtype)
-            device = cuda.mem_alloc(host.nbytes)
-            mode = engine.get_tensor_mode(name)
-            binding = TensorRTIOBinding(name=name, host=host, device=device, mode=mode)
-            if mode == trt.TensorIOMode.INPUT:
-                inputs.append(binding)
-            else:
-                outputs.append(binding)
-            context.set_tensor_address(name, int(device))
+            for index in range(engine.num_io_tensors):
+                name = engine.get_tensor_name(index)
+                shape = engine.get_tensor_shape(name)
+                dtype = trt.nptype(engine.get_tensor_dtype(name))
+                size = trt.volume(shape)
+                host = cuda.pagelocked_empty(size, dtype)
+                device = cuda.mem_alloc(host.nbytes)
+                mode = engine.get_tensor_mode(name)
+                binding = TensorRTIOBinding(name=name, host=host, device=device, mode=mode)
+                if mode == trt.TensorIOMode.INPUT:
+                    inputs.append(binding)
+                else:
+                    outputs.append(binding)
+                context.set_tensor_address(name, int(device))
 
-        return cls(engine=engine, context=context, stream=stream, inputs=inputs, outputs=outputs)
+            return cls(
+                engine=engine,
+                context=context,
+                cuda_context=cuda_context,
+                stream=stream,
+                inputs=inputs,
+                outputs=outputs,
+            )
+        except Exception:
+            try:
+                cuda_context.pop()
+            except Exception:
+                logger.debug("TensorRT CUDA context cleanup after load failure was skipped")
+            raise
 
     def infer(self, input_array) -> Any:
         cuda = _require_pycuda()
         if not self.inputs or not self.outputs:
             raise RuntimeError("TensorRTSession has no bound IO tensors")
 
-        input_binding = self.inputs[0]
-        output_binding = self.outputs[0]
-        input_host = input_binding.host
-        output_host = output_binding.host
+        self.cuda_context.push()
+        try:
+            input_binding = self.inputs[0]
+            output_binding = self.outputs[0]
+            input_host = input_binding.host
+            output_host = output_binding.host
 
-        input_host[:] = input_array.ravel()
-        cuda.memcpy_htod_async(input_binding.device, input_host, self.stream)
-        self.context.execute_async_v3(stream_handle=self.stream.handle)
-        cuda.memcpy_dtoh_async(output_host, output_binding.device, self.stream)
-        self.stream.synchronize()
-        return output_host
+            input_host[:] = input_array.ravel()
+            cuda.memcpy_htod_async(input_binding.device, input_host, self.stream)
+            self.context.execute_async_v3(stream_handle=self.stream.handle)
+            cuda.memcpy_dtoh_async(output_host, output_binding.device, self.stream)
+            self.stream.synchronize()
+            return output_host
+        finally:
+            self.cuda_context.pop()
+
+    def close(self) -> None:
+        try:
+            self.cuda_context.pop()
+        except Exception:
+            logger.debug("TensorRT CUDA context was already released")
 
 
 def load_engine(engine_path: str | Path) -> TensorRTSession:

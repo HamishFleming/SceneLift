@@ -12,7 +12,7 @@ import numpy as np
 from .io import SourceSpec, open_capture
 from .logging_controller import get_logger
 from .methods import BackgroundRemover
-from .pipeline import composite_frame
+from .pipeline import composite_frame, _resize_rgba
 
 
 logger = get_logger(__name__)
@@ -49,6 +49,12 @@ def _put_latest(frame_queue: queue.Queue[np.ndarray | None], item: np.ndarray | 
                 frame_queue.get_nowait()
             except queue.Empty:
                 pass
+
+
+def _close_remover(remover: BackgroundRemover) -> None:
+    close = getattr(remover, "close", None)
+    if callable(close):
+        close()
 
 
 def _capture_worker(
@@ -160,6 +166,7 @@ def run_live_virtualcam(config: LiveConfig) -> None:
                     logger.debug("Live frame %d input_shape=%s", processed + 1, getattr(frame, "shape", None))
 
                 rgba = config.method.remove(frame)
+                rgba = _resize_rgba(rgba, frame.shape[:2])
                 bgr = composite_frame(rgba, config.background_color)
                 rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
                 virtualcam.send(rgb)
@@ -178,3 +185,4 @@ def run_live_virtualcam(config: LiveConfig) -> None:
                 logger.info("Live stream finished processed=%d average_fps=%.2f", processed, processed / elapsed)
     finally:
         capture.release()
+        _close_remover(config.method)
