@@ -16,6 +16,7 @@ The project now separates model support into reusable layers:
   - live runtime wrapper for the shared TensorRT scaffold
 - `src/bgremoval/models/weights/`
   - local cached weights and exported artifacts by model name
+  - ignored by git except for the per-folder `README.md` files
 
 Example model-specific artifact layout:
 
@@ -27,6 +28,8 @@ Example model-specific artifact layout:
   - cached `onnx/model.onnx` and `preprocessor_config.json` artifacts from `BritishWerewolf/U-2-Net-Human-Seg`
 - `src/bgremoval/models/weights/mediapipe-selfie-segmentation/`
   - cached `onnx/model.onnx` and `preprocessor_config.json` artifacts from `onnx-community/mediapipe_selfie_segmentation`
+
+Common generated model artifacts such as `.onnx`, `.engine`, `.plan`, `.pt`, `.pth`, `.ckpt`, `.safetensors`, `.tflite`, and `.npy` files are also ignored so local fetch/build steps can populate them without polluting the repository.
 
 The build step can fetch `Xenova/modnet` automatically into the ONNX path if the file is missing.
 The same registry-driven fetch path is also available for `onnx-community/BEN2-ONNX`.

@@ -1,6 +1,7 @@
 # Model Weights
 
 This directory is reserved for local model weights and cached artifacts.
+Git ignores the generated contents here so fetched checkpoints, exported ONNX files, and TensorRT engines stay local.
 
 Suggested layout:
 

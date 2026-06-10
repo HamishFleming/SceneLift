@@ -1,2 +1,34 @@
 input/
 output/
+data/
+dataset/
+datasets/
+artifacts/
+downloads/
+cache/
+.cache/
+.huggingface/
+
+# Local model caches and generated AI artifacts.
+src/bgremoval/models/weights/**/*
+!src/bgremoval/models/weights/**/
+!src/bgremoval/models/weights/**/README.md
+
+# Common model and inference artifact formats.
+*.onnx
+*.engine
+*.plan
+*.tflite
+*.pb
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.h5
+*.mlmodel
+*.gguf
+*.npy
+*.npz
+*.joblib
+*.pkl
+*.pickle
