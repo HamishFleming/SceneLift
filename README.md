@@ -26,6 +26,32 @@ pip install -e ".[ai,virtualcam]"
 pip install -e ".[hf]"
 ```
 
+# RealESRGAN Integration
+
+## Examples
+
+| Before | After |
+|---|---|
+| ![Before](docs/assets/sliders/upscaling1/before.png) | ![After](docs/assets/sliders/upscaling1/after.png) |
+
+![Upscaling comparison](docs/assets/sliders/upscaling1/comparison.gif)
+
+
+| Before | After |
+|---|---|
+| ![Before](docs/assets/sliders/upscaling2/before.jpg) | ![After](docs/assets/sliders/upscaling2/after.jpg) |
+
+![Upscaling comparison](docs/assets/sliders/upscaling2/comparison.gif)
+
+| Before | After |
+|---|---|
+| ![Before](docs/assets/sliders/upscaling3/before.webp) | ![After](docs/assets/sliders/upscaling3/after.webp) |
+
+![Upscaling comparison](docs/assets/sliders/upscaling3/comparison.gif)
+
+
+
+
 ## Quick Start
 
 If you just want the simplest live path for OBS:
