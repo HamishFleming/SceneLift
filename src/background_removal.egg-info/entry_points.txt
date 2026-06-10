@@ -1,12 +1,14 @@
 [console_scripts]
+ben2-benchmark = bgremoval.models.ben2.benchmark:main
 ben2-build = bgremoval.models.ben2.build_engine:main
+ben2-build-all = bgremoval.models.ben2.build_all:main
 ben2-fetch = bgremoval.models.ben2.fetch:main
 ben2-run = bgremoval.models.ben2.runtime:main
 bgremoval = bgremoval.cli:main
-bgremove = bgremoval.cli:main
-bgremoval-extract-frames = bgremoval.extract_frames:main
 bgremoval-benchmark = bgremoval.benchmark:main
+bgremoval-extract-frames = bgremoval.extract_frames:main
 bgremoval-healthcheck = bgremoval.healthcheck:main
+bgremove = bgremoval.cli:main
 modnet-build = bgremoval.models.modnet.build_engine:main
 modnet-export = bgremoval.models.modnet.export_onnx:main
 modnet-fetch = bgremoval.models.modnet.xenova:main

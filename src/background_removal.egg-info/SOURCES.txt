@@ -32,6 +32,8 @@ src/bgremoval/models/backends/mediapipe_selfie_segmentation.py
 src/bgremoval/models/backends/rembg_backend.py
 src/bgremoval/models/backends/u2net_human_seg.py
 src/bgremoval/models/ben2/__init__.py
+src/bgremoval/models/ben2/benchmark.py
+src/bgremoval/models/ben2/build_all.py
 src/bgremoval/models/ben2/build_engine.py
 src/bgremoval/models/ben2/fetch.py
 src/bgremoval/models/ben2/runtime.py

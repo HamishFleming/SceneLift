@@ -40,6 +40,12 @@ class BenchmarkResult:
     error: str | None = None
 
 
+def _close_remover(remover: Any) -> None:
+    close = getattr(remover, "close", None)
+    if callable(close):
+        close()
+
+
 def log_environment_health() -> None:
     logger.info(
         "healthcheck component=environment status=ok python=%s platform=%s opencv=%s",
@@ -96,6 +102,7 @@ def run_healthcheck(input_source: str, method: str) -> tuple[HealthCheckResult, 
     _, frame = load_reference_frame(input_source)
 
     start = time.perf_counter()
+    remover = None
     try:
         remover = create_remover(method)
         _eager_backend_load(remover)
@@ -142,6 +149,8 @@ def run_healthcheck(input_source: str, method: str) -> tuple[HealthCheckResult, 
             HealthCheckResult("backend", "ok", load_elapsed, details={"method": method, "loader": type(remover).__name__}),
             HealthCheckResult("inference", "failed", infer_elapsed, error=error, details={"method": method}),
         )
+    finally:
+        _close_remover(remover)
 
 
 def benchmark_method(
@@ -156,6 +165,43 @@ def benchmark_method(
         remover = create_remover(method)
         _eager_backend_load(remover)
         load_ms = (time.perf_counter() - load_start) * 1000.0
+    except Exception as exc:
+        load_ms = (time.perf_counter() - load_start) * 1000.0
+        error = f"{type(exc).__name__}: {exc}"
+        logger.exception("benchmark method=%s status=skipped load_ms=%.2f", method, load_ms)
+        return BenchmarkResult(
+            method=method,
+            status="skipped",
+            load_ms=load_ms,
+            warmup_ms=0.0,
+            avg_ms=0.0,
+            min_ms=0.0,
+            max_ms=0.0,
+            fps=0.0,
+            iterations=0,
+            warmup_iterations=warmup_iterations,
+            error=error,
+        )
+    return benchmark_remover(
+        remover,
+        frame,
+        method=method,
+        load_ms=load_ms,
+        iterations=iterations,
+        warmup_iterations=warmup_iterations,
+    )
+
+
+def benchmark_remover(
+    remover: Any,
+    frame: np.ndarray,
+    *,
+    method: str,
+    load_ms: float,
+    iterations: int = 10,
+    warmup_iterations: int = 2,
+) -> BenchmarkResult:
+    try:
         warmup_start = time.perf_counter()
         for _ in range(max(0, warmup_iterations)):
             remover.remove(frame.copy())
@@ -196,20 +242,5 @@ def benchmark_method(
             iterations=len(timings),
             warmup_iterations=warmup_iterations,
         )
-    except Exception as exc:
-        load_ms = (time.perf_counter() - load_start) * 1000.0
-        error = f"{type(exc).__name__}: {exc}"
-        logger.exception("benchmark method=%s status=skipped load_ms=%.2f", method, load_ms)
-        return BenchmarkResult(
-            method=method,
-            status="skipped",
-            load_ms=load_ms,
-            warmup_ms=0.0,
-            avg_ms=0.0,
-            min_ms=0.0,
-            max_ms=0.0,
-            fps=0.0,
-            iterations=0,
-            warmup_iterations=warmup_iterations,
-            error=error,
-        )
+    finally:
+        _close_remover(remover)

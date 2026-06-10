@@ -157,3 +157,38 @@ def run_video_or_camera(config: RunConfig) -> None:
             virtualcam.close()
         _close_remover(config.method)
         logger.info("Stream processing finished")
+
+
+def run_image_directory(input_dir: str, output_dir: str, remover: BackgroundRemover, background_color: tuple[int, int, int]) -> None:
+    source_dir = Path(input_dir)
+    target_dir = Path(output_dir)
+    logger.info("Processing image directory input=%s output=%s method=%s", source_dir, target_dir, remover.name)
+    if not source_dir.exists() or not source_dir.is_dir():
+        raise RuntimeError(f"Input directory does not exist: {source_dir}")
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    image_paths = sorted(
+        path for path in source_dir.iterdir() if path.is_file() and path.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tif", ".tiff"}
+    )
+    if not image_paths:
+        raise RuntimeError(f"No supported image files were found in {source_dir}")
+
+    try:
+        processed = 0
+        for path in image_paths:
+            logger.debug("Directory frame %d input=%s", processed + 1, path)
+            image = cv2.imread(str(path), cv2.IMREAD_COLOR)
+            if image is None:
+                logger.warning("Skipping unreadable image %s", path)
+                continue
+            rgba = remover.remove(image)
+            rgba = _resize_rgba(rgba, image.shape[:2])
+            stem = path.stem
+            output_path = target_dir / f"{stem}.png"
+            save_image(str(output_path), rgba, background_color)
+            processed += 1
+            if processed % 30 == 0:
+                logger.info("Processed %d directory frames", processed)
+        logger.info("Directory processing finished frames=%d output_dir=%s", processed, target_dir)
+    finally:
+        _close_remover(remover)

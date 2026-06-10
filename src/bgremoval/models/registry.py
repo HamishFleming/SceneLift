@@ -152,7 +152,12 @@ def _register_defaults() -> None:
     )
 
 
-def create_remover(name: str):
+def create_remover(
+    name: str,
+    *,
+    engine_path: str | Path | None = None,
+    input_size: tuple[int, int] | None = None,
+):
     _register_defaults()
     normalized = _METHOD_ALIASES.get(name.strip().lower(), name.strip().lower())
     logger.info("Selecting remover method %s", normalized)
@@ -179,12 +184,18 @@ def create_remover(name: str):
         )
     if normalized == "modnet-trt":
         spec = get_model_spec("modnet-trt")
-        engine_path = Path(spec.metadata["engine_path"])
-        return ModNetTensorRTRemover(engine_path=engine_path)
+        resolved_engine_path = Path(engine_path) if engine_path is not None else Path(spec.metadata["engine_path"])
+        resolved_input_size = input_size or (512, 512)
+        return ModNetTensorRTRemover(engine_path=resolved_engine_path, input_size=resolved_input_size)
     if normalized == "ben2-trt":
         spec = get_model_spec("ben2-trt")
-        engine_path = Path(spec.metadata["engine_path"])
-        return ModNetTensorRTRemover(engine_path=engine_path, input_size=(1024, 1024), name="ben2-trt")
+        resolved_engine_path = Path(engine_path) if engine_path is not None else Path(spec.metadata["engine_path"])
+        resolved_input_size = input_size or (1024, 1024)
+        return ModNetTensorRTRemover(
+            engine_path=resolved_engine_path,
+            input_size=resolved_input_size,
+            name="ben2-trt",
+        )
     raise ValueError(f"Unknown remover method: {name}")
 
 

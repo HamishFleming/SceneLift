@@ -28,6 +28,13 @@ The preferred layout is:
 - Keep only the newest webcam frame when inference lags behind capture.
 - Downscale to a practical live resolution before inference if needed.
 
+## Enhancement order
+
+- If the goal is to help segmentation, do only light pre-processing before background removal, such as mild denoising or exposure normalization.
+- If the goal is cosmetic improvement, do the enhancement after background removal on the foreground cutout or final composite.
+- Avoid aggressive sharpening, upscaling, or style changes before segmentation, because they can introduce edge artifacts and make the matte worse.
+- For live use, prefer the simplest possible pre-processing path and keep heavy enhancement out of the hot path.
+
 ## Model layout
 
 Recommended repository structure:

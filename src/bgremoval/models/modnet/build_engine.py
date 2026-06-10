@@ -17,11 +17,14 @@ logger = get_logger(__name__)
 class ModNetEngineConfig:
     onnx_path: Path
     engine_path: Path
+    timing_cache_path: Path | None = None
+    cache_dir: Path | None = None
     model_key: str = "modnet-trt"
     input_name: str = "input"
     input_shape: tuple[int, int, int, int] = (1, 3, 512, 512)
     workspace_size: int = 2 << 30
     fp16: bool = True
+    use_timing_cache: bool = True
     auto_fetch_onnx: bool = True
 
 
@@ -48,11 +51,27 @@ def _parser_error_text(parser) -> str:
     return "\n".join(messages)
 
 
+def _default_timing_cache_path(engine_path: Path) -> Path:
+    return engine_path.with_suffix(engine_path.suffix + ".timing-cache")
+
+
+def _resolve_timing_cache_path(config: ModNetEngineConfig) -> Path:
+    if config.timing_cache_path is not None:
+        return config.timing_cache_path
+    if config.cache_dir is not None:
+        return config.cache_dir / f"{config.engine_path.name}.timing-cache"
+    return _default_timing_cache_path(config.engine_path)
+
+
 def build_engine_from_onnx(config: ModNetEngineConfig) -> Path:
     try:
         import tensorrt as trt
     except ImportError as exc:
         raise RuntimeError("TensorRT is required to build an engine. Install the 'trt' extra.") from exc
+    try:
+        import pycuda.driver as cuda
+    except ImportError as exc:
+        raise RuntimeError("pycuda is required to build an engine. Install the 'trt' extra.") from exc
 
     if not config.onnx_path.exists():
         if not config.auto_fetch_onnx:
@@ -74,36 +93,80 @@ def build_engine_from_onnx(config: ModNetEngineConfig) -> Path:
         )
 
     logger.info("Building TensorRT engine from %s", config.onnx_path)
-    TRT_LOGGER = trt.Logger(trt.Logger.INFO)
-    builder = trt.Builder(TRT_LOGGER)
-    network = builder.create_network()
-    parser = trt.OnnxParser(network, TRT_LOGGER)
-    builder_config = builder.create_builder_config()
-    builder_config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, config.workspace_size)
-    if config.fp16:
-        builder_config.set_flag(trt.BuilderFlag.FP16)
-        logger.info("Requested FP16 engine build")
+    cuda.init()
+    if cuda.Device.count() <= 0:
+        raise RuntimeError("No CUDA devices are available for TensorRT engine building")
+    cuda_context = cuda.Device(0).make_context()
+    try:
+        TRT_LOGGER = trt.Logger(trt.Logger.INFO)
+        builder = trt.Builder(TRT_LOGGER)
+        network = builder.create_network()
+        parser = trt.OnnxParser(network, TRT_LOGGER)
+        builder_config = builder.create_builder_config()
+        builder_config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, config.workspace_size)
+        if config.fp16:
+            fp16_flag = getattr(trt.BuilderFlag, "FP16", None)
+            if fp16_flag is not None:
+                builder_config.set_flag(fp16_flag)
+                logger.info("Requested FP16 engine build")
+            else:
+                logger.warning(
+                    "TensorRT %s does not expose BuilderFlag.FP16 in this environment; continuing without the explicit FP16 flag",
+                    getattr(trt, "__version__", "unknown"),
+                )
 
-    if not parser.parse(config.onnx_path.read_bytes()):
-        errors = _parser_error_text(parser)
-        logger.error("TensorRT ONNX parsing failed for %s\n%s", config.onnx_path, errors)
-        if config.model_key == "ben2-trt":
-            raise RuntimeError(
-                "BEN2 ONNX parsing failed in TensorRT. This model currently appears incompatible with the local "
-                "TensorRT parser/build path in this environment. Try a different TensorRT version or use the ONNX "
-                "artifact directly with an ONNXRuntime-based runtime instead."
-            ) from None
-        raise RuntimeError(f"TensorRT ONNX parse failed for {config.onnx_path}:\n{errors}")
+        timing_cache_path = _resolve_timing_cache_path(config)
+        if config.use_timing_cache:
+            if timing_cache_path.exists():
+                try:
+                    timing_cache = builder_config.create_timing_cache(timing_cache_path.read_bytes())
+                    builder_config.set_timing_cache(timing_cache, True)
+                    logger.info("Loaded TensorRT timing cache from %s", timing_cache_path)
+                except Exception as exc:
+                    logger.warning("Could not load TensorRT timing cache %s: %s", timing_cache_path, exc)
+            else:
+                logger.info("No TensorRT timing cache found at %s; build will populate one", timing_cache_path)
 
-    profile = builder.create_optimization_profile()
-    profile.set_shape(config.input_name, config.input_shape, config.input_shape, config.input_shape)
-    builder_config.add_optimization_profile(profile)
+        if not parser.parse(config.onnx_path.read_bytes()):
+            errors = _parser_error_text(parser)
+            logger.error("TensorRT ONNX parsing failed for %s\n%s", config.onnx_path, errors)
+            if config.model_key == "ben2-trt":
+                raise RuntimeError(
+                    "BEN2 ONNX parsing failed in TensorRT. This model currently appears incompatible with the local "
+                    "TensorRT parser/build path in this environment. Try a different TensorRT version or use the ONNX "
+                    "artifact directly with an ONNXRuntime-based runtime instead."
+                ) from None
+            raise RuntimeError(f"TensorRT ONNX parse failed for {config.onnx_path}:\n{errors}")
 
-    serialized = builder.build_serialized_network(network, builder_config)
-    if serialized is None:
-        raise RuntimeError("TensorRT engine build failed")
+        profile = builder.create_optimization_profile()
+        profile.set_shape(config.input_name, config.input_shape, config.input_shape, config.input_shape)
+        builder_config.add_optimization_profile(profile)
 
-    return save_engine(bytes(serialized), config.engine_path)
+        serialized = builder.build_serialized_network(network, builder_config)
+        if serialized is None:
+            raise RuntimeError("TensorRT engine build failed")
+
+        engine_path = save_engine(bytes(serialized), config.engine_path)
+
+        if config.use_timing_cache:
+            try:
+                timing_cache = builder_config.get_timing_cache()
+                if timing_cache is None:
+                    logger.warning("TensorRT did not return a timing cache after building %s", config.engine_path)
+                else:
+                    serialized_cache = timing_cache.serialize()
+                    timing_cache_path.parent.mkdir(parents=True, exist_ok=True)
+                    timing_cache_path.write_bytes(bytes(serialized_cache))
+                    logger.info("Saved TensorRT timing cache to %s", timing_cache_path)
+            except Exception as exc:
+                logger.warning("Could not save TensorRT timing cache %s: %s", timing_cache_path, exc)
+
+        return engine_path
+    finally:
+        try:
+            cuda_context.pop()
+        except Exception:
+            logger.debug("TensorRT build CUDA context was already released")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -116,6 +179,21 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--workspace-gb", type=int, default=2, help="TensorRT workspace size in GB")
     parser.add_argument("--fp16", action="store_true", help="Enable FP16 if supported")
     parser.add_argument("--no-fp16", action="store_true", help="Disable FP16")
+    parser.add_argument(
+        "--timing-cache-path",
+        default=None,
+        help="Optional path for the TensorRT timing cache used to speed up repeated builds",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Optional directory for timing caches; each engine writes its own cache file there",
+    )
+    parser.add_argument(
+        "--no-timing-cache",
+        action="store_true",
+        help="Disable loading and saving TensorRT timing caches during the build",
+    )
     parser.add_argument(
         "--no-auto-fetch-onnx",
         action="store_true",
@@ -136,6 +214,9 @@ def main(argv: list[str] | None = None) -> int:
             input_shape=args.input_shape,
             workspace_size=args.workspace_gb << 30,
             fp16=fp16,
+            timing_cache_path=Path(args.timing_cache_path) if args.timing_cache_path else None,
+            cache_dir=Path(args.cache_dir) if args.cache_dir else None,
+            use_timing_cache=not args.no_timing_cache,
             auto_fetch_onnx=not args.no_auto_fetch_onnx,
         )
     )

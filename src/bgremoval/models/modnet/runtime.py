@@ -59,7 +59,10 @@ def _write_loop(session: TensorRTSession, config: ModNetRuntimeConfig, out_sink)
 
 
 def run_modnet_loopback(config: ModNetRuntimeConfig) -> None:
-    session = load_engine(config.engine_path)
+    session = load_engine(
+        config.engine_path,
+        input_shapes={"input": (1, 3, config.height, config.width)},
+    )
     out_cam = cv2.VideoWriter(
         config.v4l2_device,
         cv2.CAP_V4L2,
@@ -83,7 +86,10 @@ def run_modnet_srt(config: ModNetRuntimeConfig) -> None:
     if not config.srt_url:
         raise ValueError("srt_url is required for SRT output")
 
-    session = load_engine(config.engine_path)
+    session = load_engine(
+        config.engine_path,
+        input_shapes={"input": (1, 3, config.height, config.width)},
+    )
     ffmpeg = subprocess.Popen(
         [
             "ffmpeg",

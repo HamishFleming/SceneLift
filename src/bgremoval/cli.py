@@ -4,9 +4,10 @@ import argparse
 
 from .logging_controller import get_logger, setup_logging
 from .io import is_image_output, parse_source
+from .models.registry import get_model_spec
 from .methods import available_method_choices, create_remover
 from .live import LiveConfig, run_live_virtualcam
-from .pipeline import RunConfig, run_image_file, run_video_or_camera
+from .pipeline import RunConfig, run_image_directory, run_image_file, run_video_or_camera
 
 
 logger = get_logger(__name__)
@@ -44,6 +45,29 @@ def build_parser() -> argparse.ArgumentParser:
         default="grabcut",
         choices=available_method_choices(),
         help="Background removal method to use",
+    )
+    parser.add_argument(
+        "--engine-path",
+        default=None,
+        help="Optional TensorRT engine path for modnet-trt or ben2-trt",
+    )
+    parser.add_argument(
+        "--width",
+        type=int,
+        default=None,
+        help="Optional TensorRT input width for modnet-trt or ben2-trt",
+    )
+    parser.add_argument(
+        "--height",
+        type=int,
+        default=None,
+        help="Optional TensorRT input height for modnet-trt or ben2-trt",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["file", "live"],
+        default="file",
+        help="Optional shortcut for file output or live virtualcam output",
     )
     parser.add_argument(
         "--background-color",
@@ -103,7 +127,24 @@ def main(argv: list[str] | None = None) -> int:
     setup_logging(args.log_level, log_file=args.log_file, json_output=args.log_json, force=True)
 
     input_source = parse_source(args.input)
-    remover = create_remover(args.method)
+    if args.mode == "live":
+        args.live = True
+
+    trt_input_size = None
+    if args.width is not None or args.height is not None:
+        if args.width is None or args.height is None:
+            raise SystemExit("--width and --height must be provided together")
+        trt_input_size = (args.width, args.height)
+
+    spec = get_model_spec(args.method)
+    if (args.engine_path is not None or trt_input_size is not None) and spec.kind != "tensorrt":
+        raise SystemExit("--engine-path, --width, and --height are only supported for modnet-trt or ben2-trt")
+
+    remover = create_remover(
+        args.method,
+        engine_path=args.engine_path,
+        input_size=trt_input_size,
+    )
 
     if input_source.kind == "image":
         if args.output == "virtualcam":
@@ -113,6 +154,19 @@ def main(argv: list[str] | None = None) -> int:
         run_image_file(
             input_path=str(input_source.value),
             output_path=args.output,
+            remover=remover,
+            background_color=args.background_color,
+        )
+        return 0
+
+    if input_source.kind == "directory":
+        if args.output == "virtualcam":
+            raise SystemExit("virtualcam output is only supported for video or camera input")
+        if is_image_output(args.output):
+            raise SystemExit("directory input requires an output directory, not a single image file")
+        run_image_directory(
+            input_dir=str(input_source.value),
+            output_dir=args.output,
             remover=remover,
             background_color=args.background_color,
         )

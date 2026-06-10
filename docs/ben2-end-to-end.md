@@ -29,6 +29,12 @@ It also requests FP16 directly instead of relying on a TensorRT Python capabilit
 ben2-run --mode loopback
 ```
 
+To run a specific engine file, pass it explicitly:
+
+```bash
+ben2-run --engine-path /path/to/ben2-768.engine --width 768 --height 768 --mode loopback
+```
+
 Or use SRT:
 
 ```bash
@@ -43,3 +49,11 @@ ben2-run --mode srt --srt-url "srt://host:9000?mode=caller&latency=200000"
 - The ONNX file exposed by the repository is `onnx/model_fp16.onnx`.
 - The runtime scaffold uses the shared TensorRT live pipeline and can be tuned further once the ONNX graph is validated end to end.
 - In this environment, TensorRT parsing of the BEN2 ONNX graph is currently failing with a shape-tensor compatibility error, so engine generation is experimental until that graph is made TRT-compatible or converted through another path.
+- BEN2 performance is mostly controlled by the fixed TensorRT input shape, so smaller shapes are the main way to increase throughput. See [`docs/ben2-performance.md`](/mnt/code/ai/background-removal/ben/docs/ben2-performance.md) for the tuning knobs.
+- `ben2-run` uses the engine file passed via `--engine-path`; the top-level `bgremoval` CLI still uses the registry default engine path for `--method ben2` unless you call the model-specific runtime directly.
+- The shared TensorRT session destroys TensorRT objects while the CUDA context is still current, then detaches the CUDA context on shutdown so healthcheck and benchmark runs exit cleanly.
+- `bgremoval-healthcheck` closes the remover after a successful BEN2 probe, so a passing healthcheck does not leak a CUDA context until process exit.
+- If a shape-specific engine file was built for a different fixed shape, runtime loading now fails with a clear shape-mismatch error instead of a low-level broadcast crash. Rebuild the engine for the requested size before rerunning.
+- The TensorRT session checks the engine's baked input shape before allocating buffers, so a mislabeled BEN2 engine is rejected early with the shape that needs rebuilding.
+- The `ben2-benchmark` command compares the default `1024`, `768`, and `512` square shapes and builds missing engines on demand.
+- The `ben2-build-all` command builds the default BEN2 shape set in one pass and reuses a shared timing cache between the shape builds.

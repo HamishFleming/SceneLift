@@ -24,7 +24,10 @@ class ModNetTensorRTRemover:
     def _get_session(self) -> TensorRTSession:
         if self.session is None:
             logger.info("Loading MODNet TensorRT engine from %s", self.engine_path)
-            self.session = load_engine(self.engine_path)
+            self.session = load_engine(
+                self.engine_path,
+                input_shapes={"input": (1, 3, self.input_size[1], self.input_size[0])},
+            )
         return self.session
 
     def _preprocess(self, frame_bgr: np.ndarray) -> np.ndarray:

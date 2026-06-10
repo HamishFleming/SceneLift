@@ -28,6 +28,8 @@ def parse_source(raw: str) -> SourceSpec:
         return SourceSpec(kind="camera", value=int(token.split(":", 1)[1]))
     path = Path(token)
     if path.exists():
+        if path.is_dir():
+            return SourceSpec(kind="directory", value=str(path))
         suffix = path.suffix.lower()
         if suffix in IMAGE_EXTENSIONS:
             return SourceSpec(kind="image", value=str(path))

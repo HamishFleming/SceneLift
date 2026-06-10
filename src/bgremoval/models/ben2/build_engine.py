@@ -13,6 +13,7 @@ def main(argv: list[str] | None = None) -> int:
     spec = get_model_spec("ben2-trt")
     onnx_path = Path(spec.metadata["onnx_path"])
     engine_path = Path(spec.metadata["engine_path"])
+    cache_dir = Path(spec.local_weights or engine_path.parent)
     args = [
         "--model-key",
         "ben2-trt",
@@ -22,6 +23,8 @@ def main(argv: list[str] | None = None) -> int:
         str(engine_path),
         "--input-shape",
         "1,3,1024,1024",
+        "--cache-dir",
+        str(cache_dir),
     ]
     if argv:
         args.extend(argv)

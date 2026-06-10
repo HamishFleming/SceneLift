@@ -45,6 +45,8 @@ modnet-fetch = "bgremoval.models.modnet.xenova:main"
 ben2-fetch = "bgremoval.models.ben2.fetch:main"
 ben2-build = "bgremoval.models.ben2.build_engine:main"
 ben2-run = "bgremoval.models.ben2.runtime:main"
+ben2-benchmark = "bgremoval.models.ben2.benchmark:main"
+ben2-build-all = "bgremoval.models.ben2.build_all:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
