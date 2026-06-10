@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "background-removal"
+version = "0.1.0"
+description = "Prototype CLI for testing background removal methods on files or camera input"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy",
+  "opencv-python",
+  "pillow",
+]
+
+[project.optional-dependencies]
+ai = ["rembg"]
+hf = [
+  "torch",
+  "transformers",
+  "einops",
+  "kornia",
+  "timm",
+  "torchvision",
+  "onnxruntime",
+]
+trt = [
+  "tensorrt",
+  "pycuda",
+  "huggingface_hub",
+]
+virtualcam = ["pyvirtualcam"]
+
+[project.scripts]
+bgremoval = "bgremoval.cli:main"
+bgremoval-benchmark = "bgremoval.benchmark:main"
+bgremoval-healthcheck = "bgremoval.healthcheck:main"
+modnet-export = "bgremoval.models.modnet.export_onnx:main"
+modnet-build = "bgremoval.models.modnet.build_engine:main"
+modnet-run = "bgremoval.models.modnet.runtime:main"
+modnet-zero-copy = "bgremoval.models.modnet.zero_copy:main"
+modnet-fetch = "bgremoval.models.modnet.xenova:main"
+ben2-fetch = "bgremoval.models.ben2.fetch:main"
+ben2-build = "bgremoval.models.ben2.build_engine:main"
+ben2-run = "bgremoval.models.ben2.runtime:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,12 @@
+[console_scripts]
+ben2-build = bgremoval.models.ben2.build_engine:main
+ben2-fetch = bgremoval.models.ben2.fetch:main
+ben2-run = bgremoval.models.ben2.runtime:main
+bgremoval = bgremoval.cli:main
+bgremoval-benchmark = bgremoval.benchmark:main
+bgremoval-healthcheck = bgremoval.healthcheck:main
+modnet-build = bgremoval.models.modnet.build_engine:main
+modnet-export = bgremoval.models.modnet.export_onnx:main
+modnet-fetch = bgremoval.models.modnet.xenova:main
+modnet-run = bgremoval.models.modnet.runtime:main
+modnet-zero-copy = bgremoval.models.modnet.zero_copy:main

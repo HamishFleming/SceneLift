@@ -1,0 +1,24 @@
+Metadata-Version: 2.4
+Name: background-removal
+Version: 0.1.0
+Summary: Prototype CLI for testing background removal methods on files or camera input
+Requires-Python: >=3.11
+Requires-Dist: numpy
+Requires-Dist: opencv-python
+Requires-Dist: pillow
+Provides-Extra: ai
+Requires-Dist: rembg; extra == "ai"
+Provides-Extra: hf
+Requires-Dist: torch; extra == "hf"
+Requires-Dist: transformers; extra == "hf"
+Requires-Dist: einops; extra == "hf"
+Requires-Dist: kornia; extra == "hf"
+Requires-Dist: timm; extra == "hf"
+Requires-Dist: torchvision; extra == "hf"
+Requires-Dist: onnxruntime; extra == "hf"
+Provides-Extra: trt
+Requires-Dist: tensorrt; extra == "trt"
+Requires-Dist: pycuda; extra == "trt"
+Requires-Dist: huggingface_hub; extra == "trt"
+Provides-Extra: virtualcam
+Requires-Dist: pyvirtualcam; extra == "virtualcam"
