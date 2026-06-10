@@ -35,6 +35,18 @@ If you want multiple engines or shapes to share a cache directory, use `--cache-
 modnet-run --engine-path src/bgremoval/models/weights/modnet/modnet.engine --mode loopback
 ```
 
+For OBS or any virtual-camera workflow, the top-level CLI uses the same live pipeline:
+
+```bash
+bgremoval --input camera:0 --output virtualcam --method modnet --live --live-max-dimension 960
+```
+
+If you want to target a custom engine or shape, switch to `modnet-trt` and pass the engine path explicitly:
+
+```bash
+bgremoval --input camera:0 --output virtualcam --method modnet-trt --engine-path src/bgremoval/models/weights/modnet/modnet.engine --width 512 --height 512 --live
+```
+
 To run a different engine file, point `--engine-path` at it directly:
 
 ```bash

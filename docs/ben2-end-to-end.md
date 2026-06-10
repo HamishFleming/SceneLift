@@ -29,6 +29,18 @@ It also requests FP16 directly instead of relying on a TensorRT Python capabilit
 ben2-run --mode loopback
 ```
 
+For OBS or any virtual-camera workflow, the top-level CLI uses the same live pipeline:
+
+```bash
+bgremoval --input camera:0 --output virtualcam --method ben2 --live --live-max-dimension 960
+```
+
+If you want to target a custom engine or shape, switch to `ben2-trt` and pass the engine path explicitly:
+
+```bash
+bgremoval --input camera:0 --output virtualcam --method ben2-trt --engine-path src/bgremoval/models/weights/ben2/ben2.engine --width 1024 --height 1024 --live
+```
+
 To run a specific engine file, pass it explicitly:
 
 ```bash
