@@ -1,13 +1,22 @@
-# Background Removal Prototype
+# SceneLift
 
-CLI prototype for testing background removal methods on:
+AI background removal for creators and streamers.
 
-- file input: image, video, or a directory of image frames
-- camera input: live webcam stream
-- file output: image or video
-- loopback output: virtual camera, when `pyvirtualcam` is installed
+SceneLift helps you isolate yourself from your background with a local CLI that works on:
 
-The primary CLI is `bgremoval`; `bgremove` is provided as a compatibility alias.
+- live webcam input for OBS and streaming
+- image files, video files, or folders of frames
+- transparent PNGs or rendered video output
+- virtual camera loopback output when `pyvirtualcam` is installed
+
+The primary CLI is still `bgremoval`; `bgremove` remains available as a compatibility alias.
+
+## Why SceneLift
+
+- Built for people who want a clean camera feed without wrestling with machine-learning jargon.
+- Focused on low-latency live use, especially for OBS and streaming setups.
+- Works with local files and local cameras, so you can keep the workflow simple and private.
+- Preserves the existing CLI and Python API for people already using the project.
 
 ## Install
 
@@ -15,6 +24,26 @@ The primary CLI is `bgremoval`; `bgremove` is provided as a compatibility alias.
 pip install -e .
 pip install -e ".[ai,virtualcam]"
 pip install -e ".[hf]"
+```
+
+## Quick Start
+
+If you just want the simplest live path for OBS:
+
+```bash
+bgremoval --input camera:0 --output virtualcam --method modnet --live --live-max-dimension 960
+```
+
+If you want a higher-quality live path and already have the TensorRT engine:
+
+```bash
+bgremoval --input camera:0 --output virtualcam --method ben2 --live --live-max-dimension 960
+```
+
+If you want a transparent image for overlays, thumbnails, or editing:
+
+```bash
+bgremoval --input samples/person.jpg --output out.png --method grabcut
 ```
 
 ## Examples
@@ -111,6 +140,17 @@ Run a startup healthcheck for one backend:
 ```bash
 bgremoval-healthcheck --input input/a.webp --method mediapipe-selfie-segmentation
 ```
+
+## For Creators And Streamers
+
+SceneLift is designed to make background removal feel like part of a normal creative workflow:
+
+- use it as a local virtual camera in OBS
+- switch between fast, balanced, and quality-oriented backends
+- process webcam feeds, recorded footage, or frame folders
+- generate transparent cutouts for scenes, thumbnails, and edits
+
+For the most approachable live setup, start with `modnet-trt` or `ben2-trt` and keep `--live` enabled.
 
 ## Notes
 
