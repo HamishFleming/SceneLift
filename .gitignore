@@ -32,3 +32,4 @@ src/bgremoval/models/weights/**/*
 *.joblib
 *.pkl
 *.pickle
+gitleaks-report.json
