@@ -37,11 +37,11 @@ pip install -e ".[hf]"
 ![Upscaling comparison](docs/assets/sliders/upscaling1/comparison.gif)
 
 
-| Before | After |
+<!-- | Before | After |
 |---|---|
 | ![Before](docs/assets/sliders/upscaling2/before.jpg) | ![After](docs/assets/sliders/upscaling2/after.jpg) |
 
-![Upscaling comparison](docs/assets/sliders/upscaling2/comparison.gif)
+![Upscaling comparison](docs/assets/sliders/upscaling2/comparison.gif) -->
 
 | Before | After |
 |---|---|
