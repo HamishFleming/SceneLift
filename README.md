@@ -47,7 +47,7 @@ pip install -e ".[hf]"
 |---|---|
 | ![Before](docs/assets/sliders/upscaling3/before.webp) | ![After](docs/assets/sliders/upscaling3/after.webp) |
 
-![Upscaling comparison](docs/assets/sliders/upscaling3/comparison.gif)
+![Upscaling comparison](docs/assets/sliders/upscaling3/comparison-p.gif)
 
 
 

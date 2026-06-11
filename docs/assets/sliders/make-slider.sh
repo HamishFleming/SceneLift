@@ -57,3 +57,14 @@ ffmpeg -y \
     [s1][p]paletteuse
   " \
   docs/assets/sliders/upscaling3/comparison-face.gif
+
+
+ffmpeg -y   -loop 1 -t 4 -i docs/assets/sliders/upscaling3/before-face-preview.png   -loop 1 -t 4 -i docs/assets/sliders/upscaling3/after-face-preview.png   -filter_complex "
+    [0:v]scale=800:-1,setsar=1,format=rgba[before];
+    [1:v]scale=800:-1,setsar=1,format=rgba[after];
+    [before][after]blend=all_expr='if(lte(X,W*(0.5-0.5*cos(2*PI*T/4))),B,A)'[blend];
+    [blend]drawbox=x='w*(0.5-0.5*cos(2*PI*t/4))-2':y=0:w=4:h=ih:color=white@0.9:t=fill,fps=24,split[s0][s1];
+    [s0]palettegen[p];
+    [s1][p]paletteuse
+  "   docs/assets/sliders/upscaling3/comparison-p.gif
+
