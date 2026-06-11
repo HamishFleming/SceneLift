@@ -88,6 +88,39 @@ def _resolve_calibration_cache_path(config: ModNetEngineConfig) -> Path:
     return _default_calibration_cache_path(config.engine_path)
 
 
+def _shape_matches_network(engine_shape: tuple[int, ...], requested_shape: tuple[int, ...]) -> bool:
+    if len(engine_shape) != len(requested_shape):
+        return False
+    for engine_dim, requested_dim in zip(engine_shape, requested_shape):
+        if engine_dim in (-1, 0):
+            continue
+        if engine_dim != requested_dim:
+            return False
+    return True
+
+
+def _resolve_network_input(network, requested_name: str):
+    if network.num_inputs <= 0:
+        raise RuntimeError("Parsed ONNX network does not expose any inputs")
+    if network.num_inputs == 1:
+        network_input = network.get_input(0)
+        if network_input.name != requested_name:
+            logger.warning(
+                "TensorRT parsed network input name %s does not match requested name %s; using parsed input tensor",
+                network_input.name,
+                requested_name,
+            )
+        return network_input
+    for index in range(network.num_inputs):
+        network_input = network.get_input(index)
+        if network_input.name == requested_name:
+            return network_input
+    input_names = [network.get_input(index).name for index in range(network.num_inputs)]
+    raise RuntimeError(
+        f"TensorRT parsed network input tensor {requested_name!r} was not found. Available network inputs: {input_names}"
+    )
+
+
 def _preprocess_calibration_image(path: Path, input_shape: tuple[int, int, int, int]) -> np.ndarray:
     height = input_shape[2]
     width = input_shape[3]
@@ -233,12 +266,36 @@ def build_engine_from_onnx(config: ModNetEngineConfig) -> Path:
                 ) from None
             raise RuntimeError(f"TensorRT ONNX parse failed for {config.onnx_path}:\n{errors}")
 
+        network_input = _resolve_network_input(network, config.input_name)
+        parsed_input_shape = tuple(int(dim) for dim in network_input.shape)
+        requested_shape_override = not _shape_matches_network(parsed_input_shape, config.input_shape)
+        if requested_shape_override:
+            try:
+                network_input.shape = config.input_shape
+                logger.info(
+                    "Overrode parsed ONNX input shape for %s from %s to %s",
+                    network_input.name,
+                    parsed_input_shape,
+                    config.input_shape,
+                )
+            except Exception as exc:
+                raise RuntimeError(
+                    f"TensorRT parsed input tensor {network_input.name!r} has static shape {parsed_input_shape}, "
+                    f"but build requested shape {config.input_shape}. The ONNX input shape could not be overridden."
+                ) from exc
+
         profile = builder.create_optimization_profile()
-        profile.set_shape(config.input_name, config.input_shape, config.input_shape, config.input_shape)
+        profile.set_shape(network_input.name, config.input_shape, config.input_shape, config.input_shape)
         builder_config.add_optimization_profile(profile)
 
         serialized = builder.build_serialized_network(network, builder_config)
         if serialized is None:
+            if config.model_key == "ben2-trt" and requested_shape_override:
+                raise RuntimeError(
+                    "BEN2_Base.onnx is structurally fixed to its exported 1024x1024 input layout in this TensorRT path. "
+                    f"A build for requested shape {config.input_shape} cannot be produced from this ONNX artifact. "
+                    "Use a 1024x1024 BEN2 build, or generate a BEN2-specific ONNX export that was authored for the target size."
+                )
             raise RuntimeError("TensorRT engine build failed")
 
         engine_path = save_engine(bytes(serialized), config.engine_path)

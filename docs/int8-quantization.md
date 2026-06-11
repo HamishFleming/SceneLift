@@ -2,6 +2,8 @@
 
 The TensorRT build path now supports optional INT8 calibration for both `modnet-trt` and `ben2-trt`.
 
+If you want a single setup command, use `bgremoval-trt-build-int8`.
+
 ## Supported workflow
 
 - Build from ONNX as usual.
@@ -28,6 +30,12 @@ ben2-build \
   --calibration-data-dir input/calibration/ben2
 ```
 
+For the umbrella path:
+
+```bash
+bgremoval-trt-build-int8 --calibration-data-dir input/calibration
+```
+
 ## Calibration cache
 
 The default calibration cache path is derived from the engine path:
@@ -43,3 +51,4 @@ You can override that with `--calibration-cache-path`.
 - The calibrator uses resized, normalized calibration images that match the model input shape.
 - If you only have a prior calibration cache, the builder can reuse it without new images.
 - FP16 remains the default and is still the safest fallback when you do not have good calibration data.
+- The umbrella builder runs MODNet first and then BEN2, sharing the same calibration dataset and timing-cache flow.

@@ -6,14 +6,16 @@ BEN2 in this repository runs through the shared TensorRT live pipeline. The main
 
 1. Reduce the engine input shape.
 
-   The current BEN2 build path uses `1,3,1024,1024`. If you can tolerate lower spatial detail, rebuild and run at a smaller shape such as `1,3,768,768` or `1,3,512,512`.
+   The current shipped BEN2 TensorRT path is locked to `1,3,1024,1024` because the upstream `BEN2_Base.onnx` artifact is structurally fixed to that layout.
 
    Example:
 
    ```bash
-   ben2-build --input-shape 1,3,768,768
-   ben2-run --width 768 --height 768
+   ben2-build
+   ben2-run --width 1024 --height 1024
    ```
+
+   Requests such as `512x512` or `768x768` currently fail in TensorRT because internal reshapes in the shipped ONNX still assume the exported `1024x1024` volume. Supporting smaller BEN2 TensorRT shapes needs a BEN2-specific ONNX export, not just a different TensorRT optimization profile.
 
 2. Keep FP16 enabled.
 
@@ -41,14 +43,14 @@ BEN2 in this repository runs through the shared TensorRT live pipeline. The main
 
 ## What to try first
 
-If you want a faster BEN2 path, start with:
+If you want a working BEN2 TensorRT path today, start with:
 
 ```bash
-ben2-build --input-shape 1,3,768,768
-ben2-run --width 768 --height 768 --mode loopback
+ben2-build
+ben2-run --width 1024 --height 1024 --mode loopback
 ```
 
-If that still is not fast enough, move to `512x512` and compare output quality against throughput.
+If `1024x1024` is too slow, the next practical step is a different backend or a BEN2-specific ONNX export flow rather than a smaller TensorRT profile against `BEN2_Base.onnx`.
 
 ## Benchmark command
 
@@ -58,7 +60,7 @@ The repository includes a dedicated shape benchmark:
 ben2-benchmark --input input/a.webp
 ```
 
-By default it compares `1024`, `768`, and `512` square shapes, builds missing engines on demand, and reports load plus inference timings for each size.
+By default it benchmarks `1024` only, because the shipped BEN2 ONNX artifact does not currently support smaller TensorRT build shapes.
 Those builds also reuse and refresh the timing caches in the selected cache directory when available:
 
 ```bash
@@ -67,7 +69,7 @@ ben2-benchmark --input input/a.webp --cache-dir /tmp/ben2-cache
 
 ## Build all
 
-To build all default BEN2 shapes in one pass, use:
+To build the default BEN2 TensorRT shape, use:
 
 ```bash
 ben2-build-all --cache-dir /tmp/ben2-cache

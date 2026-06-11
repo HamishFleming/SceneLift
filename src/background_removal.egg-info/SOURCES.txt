@@ -9,8 +9,8 @@ src/background_removal.egg-info/top_level.txt
 src/bgremoval/__init__.py
 src/bgremoval/__main__.py
 src/bgremoval/api.py
-src/bgremoval/calibration_set.py
 src/bgremoval/benchmark.py
+src/bgremoval/calibration_set.py
 src/bgremoval/cli.py
 src/bgremoval/extract_frames.py
 src/bgremoval/health.py
@@ -23,6 +23,7 @@ src/bgremoval/pipeline.py
 src/bgremoval/models/__init__.py
 src/bgremoval/models/base.py
 src/bgremoval/models/hf_onnx.py
+src/bgremoval/models/pull_all.py
 src/bgremoval/models/registry.py
 src/bgremoval/models/support.py
 src/bgremoval/models/backends/__init__.py
@@ -51,5 +52,17 @@ src/bgremoval/models/modnet/trt_backend.py
 src/bgremoval/models/modnet/xenova.py
 src/bgremoval/models/modnet/zero_copy.py
 src/bgremoval/models/tensorrt/__init__.py
+src/bgremoval/models/tensorrt/build_all.py
+src/bgremoval/models/tensorrt/build_int8.py
 src/bgremoval/models/tensorrt/calibration.py
 src/bgremoval/models/tensorrt/session.py
+src/bgremoval/upscale/__init__.py
+src/bgremoval/upscale/base.py
+src/bgremoval/upscale/benchmark.py
+src/bgremoval/upscale/cli.py
+src/bgremoval/upscale/health.py
+src/bgremoval/upscale/healthcheck.py
+src/bgremoval/upscale/pipeline.py
+src/bgremoval/upscale/registry.py
+src/bgremoval/upscale/backends/__init__.py
+src/bgremoval/upscale/backends/realesrgan.py

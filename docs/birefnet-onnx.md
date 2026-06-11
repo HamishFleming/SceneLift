@@ -34,5 +34,8 @@ After export, run a quick inference check with ONNXRuntime and compare the outpu
 ## Notes for this repo
 
 - The local `birefnet` backend in `src/bgremoval/models/backends/birefnet.py` is still PyTorch/Hugging Face based.
+- On first live use, `bgremoval --method birefnet` loads the Hugging Face BiRefNet model at runtime and may need to download it if it is not already cached locally.
+- If you interrupt that first load with `Ctrl-C`, the traceback will usually show deep `transformers` and `torch` import frames. That indicates an interrupted startup path, not a BiRefNet inference failure.
+- That backend is functional for experimentation, but it is much heavier than the TensorRT paths and is not the preferred low-latency virtual-camera backend in this repo.
 - Local mirrored weights or exports can live under `src/bgremoval/models/weights/birefnet/`.
 - If you want a repo-native export workflow for another model, add it under `src/bgremoval/models/exporters/` and keep the old path as a thin shim if needed.

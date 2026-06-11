@@ -8,6 +8,7 @@ from pathlib import Path
 from ...logging_controller import get_logger, setup_logging
 from ..modnet.build_engine import ModNetEngineConfig, build_engine_from_onnx
 from ..registry import get_model_spec
+from ..tensorrt.session import validate_engine_input_shapes
 
 
 logger = get_logger(__name__)
@@ -54,12 +55,7 @@ def _engine_needs_rebuild(engine_path: Path, size: int) -> bool:
     if not engine_path.exists():
         return True
     try:
-        remover = ModNetTensorRTRemover(
-            engine_path=engine_path,
-            input_size=(size, size),
-        )
-        session = remover._get_session()
-        session.close()
+        validate_engine_input_shapes(engine_path, {"input": (1, 3, size, size)})
         return False
     except Exception as exc:
         if _is_shape_mismatch_error(exc):
@@ -76,7 +72,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build BEN2 TensorRT engines for multiple shapes")
     parser.add_argument(
         "--sizes",
-        default="1024,768,512",
+        default="1024",
         type=_parse_sizes,
         help="Comma-separated square input sizes to build",
     )

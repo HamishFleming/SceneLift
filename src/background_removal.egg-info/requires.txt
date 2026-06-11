@@ -19,5 +19,11 @@ tensorrt
 pycuda
 huggingface_hub
 
+[upscale]
+torch
+torchvision
+realesrgan
+basicsr
+
 [virtualcam]
 pyvirtualcam

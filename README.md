@@ -87,6 +87,12 @@ If you want a transparent image for overlays, thumbnails, or editing:
 bgremoval --input samples/person.jpg --output out.png --method grabcut
 ```
 
+If you want Real-ESRGAN upscaling, use the dedicated command family:
+
+```bash
+bgremoval-upscale --input input/photo.jpg --output output/photo-upscaled.png
+```
+
 ## Examples
 
 Process an image file to a transparent PNG:
@@ -170,6 +176,18 @@ Build all BEN2 shapes in one pass:
 ben2-build-all
 ```
 
+Build the default TensorRT engine set in one pass:
+
+```bash
+bgremoval-trt-build-all
+```
+
+Build the default INT8 TensorRT engine set in one pass:
+
+```bash
+bgremoval-trt-build-int8 --calibration-data-dir input/calibration
+```
+
 Split a video into a folder of frames:
 
 ```bash
@@ -180,6 +198,13 @@ Prepare a calibration set from a folder of frames or sample images:
 
 ```bash
 bgremoval-calibration-set --input-dir frames --output-dir input/calibration/modnet --max-samples 32
+```
+
+Pull all registry-backed model assets into the local weights tree, including the
+official Real-ESRGAN release weights we mirror automatically:
+
+```bash
+bgremoval-model-pull-all
 ```
 
 Run a startup healthcheck for one backend:
@@ -205,6 +230,10 @@ For the most approachable live setup, start with `modnet-trt` or `ben2-trt` and 
 - `rembg` is the AI-backed path and becomes available after installing the optional extra.
 - `birefnet` loads `ZhengPeng7/BiRefNet` from Hugging Face with `transformers`, `einops`, `kornia`, `timm`, and `torchvision`.
 - `birefnet-export` converts a local BiRefNet `.pth` checkpoint to ONNX using the shared exporter framework under `src/bgremoval/models/exporters/`.
+- `bgremoval-upscale`, `bgremoval-upscale-benchmark`, and `bgremoval-upscale-healthcheck` provide the Real-ESRGAN command framework.
+- Install that backend with `pip install -e '.[upscale]'`.
+- For live OBS-style output, `--virtualcam-no-sleep` can increase throughput by letting the pipeline run as fast as inference allows.
+- The live camera path uses a one-frame queue so capture stays ahead of inference and drops stale frames instead of backing up.
 - `u2net-human-seg` downloads `onnx/model.onnx` and `preprocessor_config.json` from `BritishWerewolf/U-2-Net-Human-Seg` and runs them through ONNXRuntime.
 - `mediapipe-selfie-segmentation` downloads `onnx/model.onnx` and `preprocessor_config.json` from `onnx-community/mediapipe_selfie_segmentation` and runs them through ONNXRuntime.
 - `modnet-trt` is the TensorRT-backed live path for MODNet-style webcam removal. The CLI also accepts `--method modnet` as a shorthand alias.
@@ -219,9 +248,13 @@ For the most approachable live setup, start with `modnet-trt` or `ben2-trt` and 
 - Benchmarking and healthcheck commands share the same structured logging.
 - `bgremoval-extract-frames` writes sequentially numbered `frame_000000.png` or `.webp` files to a target directory.
 - `bgremoval-calibration-set` copies a representative subset of image files into a dedicated calibration directory for TensorRT INT8 builds.
+- `bgremoval-model-pull-all` downloads every registry-backed model asset into `src/bgremoval/models/weights/`, plus the Real-ESRGAN checkpoints that have explicit release URLs.
 - `bgremoval` can also process a directory of image frames directly and writes `.png` outputs into a target directory. See [`docs/directory-inputs.md`](/mnt/code/ai/background-removal/ben/docs/directory-inputs.md).
 - `ben2-benchmark` compares the default BEN2 square shapes `1024`, `768`, and `512` and builds missing engines on demand.
 - `ben2-build-all` builds the default BEN2 shape set in one pass and reuses a shared timing-cache file between shapes.
+- `bgremoval-trt-build-all` runs the default MODNet build plus the BEN2 build-all set for first-time TensorRT setup. See [`docs/tensorrt-engine-builds.md`](/mnt/code/ai/background-removal/ben/docs/tensorrt-engine-builds.md).
+- `bgremoval-trt-build-int8` builds the default MODNet INT8 engine and the BEN2 INT8 shape set in one pass. See [`docs/int8-quantization.md`](/mnt/code/ai/background-removal/ben/docs/int8-quantization.md).
+- Extra flags passed to `bgremoval-trt-build-all` are forwarded to `modnet-build`, so you can override the MODNet ONNX or engine paths without skipping the BEN2 setup.
 - `modnet-build` and `ben2-build` accept `--cache-dir` for timing-cache reuse without managing individual cache file paths.
 - The model registry lives under `src/bgremoval/models/` and is the place to add new AI backends and their weights.
 - All ONNX exporter implementations now live under `src/bgremoval/models/exporters/`; older paths remain as shims for compatibility.
@@ -229,4 +262,5 @@ For the most approachable live setup, start with `modnet-trt` or `ben2-trt` and 
 - `modnet-build` will auto-fetch the Xenova ONNX file if it is missing unless you disable that with `--no-auto-fetch-onnx`.
 - `ben2-build` will auto-fetch `onnx-community/BEN2-ONNX` when the ONNX file is missing.
 - TensorRT INT8 is available for `modnet-trt` and `ben2-trt`; see [`docs/int8-quantization.md`](/mnt/code/ai/background-removal/ben/docs/int8-quantization.md) for the calibration workflow and cache layout.
+- Real-ESRGAN upscaling commands live under [`docs/upscaling-realesrgan.md`](/mnt/code/ai/background-removal/ben/docs/upscaling-realesrgan.md).
 - Canonical live backend: `modnet-trt` on TensorRT.

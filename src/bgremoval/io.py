@@ -53,6 +53,8 @@ def open_capture(source: SourceSpec) -> cv2.VideoCapture:
     if source.kind == "camera":
         logger.info("Opening camera %s", source.value)
         capture = cv2.VideoCapture(int(source.value))
+        # Keep the live buffer shallow so slow inference does not build a long backlog.
+        capture.set(cv2.CAP_PROP_BUFFERSIZE, 1)
     elif source.kind in {"video", "file"}:
         logger.info("Opening video/file source %s", source.value)
         capture = cv2.VideoCapture(str(source.value))

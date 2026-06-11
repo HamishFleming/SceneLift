@@ -10,6 +10,7 @@ from ...logging_controller import get_logger, setup_logging
 from ..registry import get_model_spec
 from ..modnet.build_engine import ModNetEngineConfig, build_engine_from_onnx
 from ..modnet.trt_backend import ModNetTensorRTRemover
+from ..tensorrt.session import validate_engine_input_shapes
 
 
 logger = get_logger(__name__)
@@ -77,12 +78,7 @@ def _ensure_engine(
     should_build = rebuild or not engine_path.exists()
     if not should_build:
         try:
-            remover = ModNetTensorRTRemover(
-                engine_path=engine_path,
-                input_size=(size, size),
-            )
-            session = remover._get_session()
-            session.close()
+            validate_engine_input_shapes(engine_path, {"input": (1, 3, size, size)})
         except Exception as exc:
             if _is_shape_mismatch_error(exc):
                 logger.warning(
@@ -120,7 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--input", "-i", required=True, help="Input file path or camera spec like camera:0")
     parser.add_argument(
         "--sizes",
-        default="1024,768,512",
+        default="1024",
         type=_parse_sizes,
         help="Comma-separated square input sizes to benchmark",
     )

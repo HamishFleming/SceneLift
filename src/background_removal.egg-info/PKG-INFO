@@ -16,6 +16,11 @@ Requires-Dist: kornia; extra == "hf"
 Requires-Dist: timm; extra == "hf"
 Requires-Dist: torchvision; extra == "hf"
 Requires-Dist: onnxruntime; extra == "hf"
+Provides-Extra: upscale
+Requires-Dist: torch; extra == "upscale"
+Requires-Dist: torchvision; extra == "upscale"
+Requires-Dist: realesrgan; extra == "upscale"
+Requires-Dist: basicsr; extra == "upscale"
 Provides-Extra: trt
 Requires-Dist: tensorrt; extra == "trt"
 Requires-Dist: pycuda; extra == "trt"

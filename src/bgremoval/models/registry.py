@@ -7,6 +7,7 @@ from .backends.birefnet import BiRefNetRemover
 from .backends.grabcut import GrabCutRemover
 from .backends.mediapipe_selfie_segmentation import MediaPipeSelfieSegmentationRemover
 from .backends.rembg_backend import RembgRemover
+from .backends.rvm import RVMRemover
 from .backends.u2net_human_seg import U2NetHumanSegRemover
 from .base import ModelSpec
 from .modnet.trt_backend import ModNetTensorRTRemover
@@ -76,6 +77,21 @@ def _register_defaults() -> None:
             local_weights=_default_weight_dir() / "birefnet",
             supports_video=True,
             notes="Official Hugging Face weights for the BiRefNet segmentation model.",
+        )
+    )
+    register_model(
+        ModelSpec(
+            key="rvm",
+            display_name="Robust Video Matting",
+            kind="ai",
+            huggingface_id="PeterL1n/RobustVideoMatting",
+            local_weights=_default_weight_dir() / "rvm",
+            supports_video=True,
+            notes="Torch Hub-backed Robust Video Matting with recurrent state across video frames.",
+            metadata={
+                "source_repo": "PeterL1n/RobustVideoMatting",
+                "source_variant": "mobilenetv3",
+            },
         )
     )
     register_model(
@@ -168,6 +184,12 @@ def create_remover(
     if normalized == "birefnet":
         spec = get_model_spec("birefnet")
         return BiRefNetRemover(model_name=spec.huggingface_id or "ZhengPeng7/BiRefNet")
+    if normalized == "rvm":
+        spec = get_model_spec("rvm")
+        return RVMRemover(
+            repo=str(spec.metadata.get("source_repo", "PeterL1n/RobustVideoMatting")),
+            model_variant=str(spec.metadata.get("source_variant", "mobilenetv3")),
+        )
     if normalized == "u2net-human-seg":
         spec = get_model_spec("u2net-human-seg")
         return U2NetHumanSegRemover(

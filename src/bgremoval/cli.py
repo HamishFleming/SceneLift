@@ -6,6 +6,7 @@ from .logging_controller import get_logger, setup_logging
 from .io import is_image_output, parse_source
 from .models.registry import get_model_spec
 from .methods import available_method_choices, create_remover
+from .models.tensorrt.session import validate_engine_input_shapes
 from .live import LiveConfig, run_live_virtualcam
 from .pipeline import RunConfig, run_image_directory, run_image_file, run_video_or_camera
 
@@ -180,6 +181,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.live or (input_source.kind == "camera" and args.output == "virtualcam"):
         if args.output != "virtualcam":
             raise SystemExit("live mode currently requires virtualcam output")
+        if spec.kind == "tensorrt":
+            engine_path = getattr(remover, "engine_path", None)
+            input_size = getattr(remover, "input_size", None)
+            if engine_path is not None and input_size is not None:
+                try:
+                    validate_engine_input_shapes(
+                        engine_path,
+                        {"input": (1, 3, input_size[1], input_size[0])},
+                    )
+                except Exception as exc:
+                    raise SystemExit(
+                        f"TensorRT engine validation failed before live streaming started: {exc}"
+                    ) from exc
         logger.info("Using live pipeline from CLI")
         run_live_virtualcam(
             LiveConfig(

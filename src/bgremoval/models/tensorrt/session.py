@@ -37,6 +37,56 @@ def _shape_matches_engine(engine_shape: tuple[int, ...], requested_shape: tuple[
     return True
 
 
+def _resolve_input_shapes(
+    trt: Any,
+    engine: Any,
+    path: Path,
+    input_shapes: dict[str, tuple[int, ...]] | None,
+) -> dict[str, tuple[int, ...]]:
+    engine_input_names: list[str] = []
+    engine_tensor_names: list[str] = []
+    for index in range(engine.num_io_tensors):
+        name = engine.get_tensor_name(index)
+        engine_tensor_names.append(name)
+        if engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
+            engine_input_names.append(name)
+
+    if not input_shapes:
+        return {}
+
+    resolved_input_shapes = dict(input_shapes)
+    if len(input_shapes) == 1 and len(engine_input_names) == 1:
+        requested_name, shape = next(iter(input_shapes.items()))
+        engine_input_name = engine_input_names[0]
+        if requested_name != engine_input_name:
+            logger.warning(
+                "TensorRT engine input name %s does not match requested name %s; using engine tensor name",
+                engine_input_name,
+                requested_name,
+            )
+            resolved_input_shapes = {engine_input_name: shape}
+    for name, shape in resolved_input_shapes.items():
+        if name not in engine_tensor_names:
+            if len(engine_input_names) == 1:
+                logger.warning(
+                    "TensorRT engine does not expose tensor name %s; using sole input tensor %s",
+                    name,
+                    engine_input_names[0],
+                )
+                name = engine_input_names[0]
+            else:
+                raise RuntimeError(
+                    f"TensorRT engine input tensor {name!r} was not found. Available tensors: {engine_tensor_names}"
+                )
+        engine_shape = tuple(int(dim) for dim in engine.get_tensor_shape(name))
+        if not _shape_matches_engine(engine_shape, shape):
+            raise RuntimeError(
+                f"TensorRT engine {path} was built for input shape {engine_shape} on tensor {name!r}, "
+                f"but shape {shape} was requested. Rebuild the engine for the requested size before running."
+            )
+    return resolved_input_shapes
+
+
 @dataclass(frozen=True)
 class TensorRTIOBinding:
     name: str
@@ -107,49 +157,11 @@ class TensorRTSession:
             if engine is None:
                 raise RuntimeError(f"Could not deserialize TensorRT engine: {path}")
 
+            resolved_input_shapes = _resolve_input_shapes(trt, engine, path, input_shapes)
             context = engine.create_execution_context()
             if context is None:
                 raise RuntimeError("Could not create TensorRT execution context")
-
-            engine_input_names: list[str] = []
-            engine_tensor_names: list[str] = []
-            for index in range(engine.num_io_tensors):
-                name = engine.get_tensor_name(index)
-                engine_tensor_names.append(name)
-                if engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
-                    engine_input_names.append(name)
-
             if input_shapes:
-                resolved_input_shapes = dict(input_shapes)
-                if len(input_shapes) == 1 and len(engine_input_names) == 1:
-                    requested_name, shape = next(iter(input_shapes.items()))
-                    engine_input_name = engine_input_names[0]
-                    if requested_name != engine_input_name:
-                        logger.warning(
-                            "TensorRT engine input name %s does not match requested name %s; using engine tensor name",
-                            engine_input_name,
-                            requested_name,
-                        )
-                        resolved_input_shapes = {engine_input_name: shape}
-                for name, shape in resolved_input_shapes.items():
-                    if name not in engine_tensor_names:
-                        if len(engine_input_names) == 1:
-                            logger.warning(
-                                "TensorRT engine does not expose tensor name %s; using sole input tensor %s",
-                                name,
-                                engine_input_names[0],
-                            )
-                            name = engine_input_names[0]
-                        else:
-                            raise RuntimeError(
-                                f"TensorRT engine input tensor {name!r} was not found. Available tensors: {engine_tensor_names}"
-                            )
-                    engine_shape = tuple(int(dim) for dim in engine.get_tensor_shape(name))
-                    if not _shape_matches_engine(engine_shape, shape):
-                        raise RuntimeError(
-                            f"TensorRT engine {path} was built for input shape {engine_shape} on tensor {name!r}, "
-                            f"but shape {shape} was requested. Rebuild the engine for the requested size before running."
-                        )
                 set_input_shape = getattr(context, "set_input_shape", None)
                 if not callable(set_input_shape):
                     raise RuntimeError("TensorRT execution context does not support set_input_shape")
@@ -229,6 +241,22 @@ def load_engine(
     input_shapes: dict[str, tuple[int, ...]] | None = None,
 ) -> TensorRTSession:
     return TensorRTSession.from_engine_path(engine_path, input_shapes=input_shapes)
+
+
+def validate_engine_input_shapes(
+    engine_path: str | Path,
+    input_shapes: dict[str, tuple[int, ...]] | None = None,
+) -> None:
+    trt = _require_tensorrt()
+    path = Path(engine_path)
+    logger.info("Validating TensorRT engine from %s", path)
+    with path.open("rb") as f:
+        engine_bytes = f.read()
+    runtime = trt.Runtime(trt.Logger(trt.Logger.WARNING))
+    engine = runtime.deserialize_cuda_engine(engine_bytes)
+    if engine is None:
+        raise RuntimeError(f"Could not deserialize TensorRT engine: {path}")
+    _resolve_input_shapes(trt, engine, path, input_shapes)
 
 
 def save_engine(engine_bytes: bytes, engine_path: str | Path) -> Path:

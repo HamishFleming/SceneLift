@@ -40,6 +40,9 @@ class ModNetTensorRTRemover:
         resized = cv2.resize(frame_bgr, self.input_size, interpolation=cv2.INTER_AREA)
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
         out = rgb * matte[..., None]
+        """ return cv2.cvtColor((out * 255).astype(np.uint8), cv2.COLOR_RGB2BGRA) """
+        out = np.nan_to_num(out, nan=0.0, posinf=1.0, neginf=0.0)
+        out = np.clip(out, 0.0, 1.0)
         return cv2.cvtColor((out * 255).astype(np.uint8), cv2.COLOR_RGB2BGRA)
 
     def remove(self, frame_bgr: np.ndarray) -> np.ndarray:

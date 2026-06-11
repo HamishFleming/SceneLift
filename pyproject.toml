@@ -24,6 +24,12 @@ hf = [
   "torchvision",
   "onnxruntime",
 ]
+upscale = [
+  "torch",
+  "torchvision",
+  "realesrgan",
+  "basicsr",
+]
 trt = [
   "tensorrt",
   "pycuda",
@@ -38,6 +44,12 @@ bgremoval-extract-frames = "bgremoval.extract_frames:main"
 bgremoval-benchmark = "bgremoval.benchmark:main"
 bgremoval-healthcheck = "bgremoval.healthcheck:main"
 bgremoval-calibration-set = "bgremoval.calibration_set:main"
+bgremoval-model-pull-all = "bgremoval.models.pull_all:main"
+bgremoval-trt-build-all = "bgremoval.models.tensorrt.build_all:main"
+bgremoval-trt-build-int8 = "bgremoval.models.tensorrt.build_int8:main"
+bgremoval-upscale = "bgremoval.upscale.cli:main"
+bgremoval-upscale-benchmark = "bgremoval.upscale.benchmark:main"
+bgremoval-upscale-healthcheck = "bgremoval.upscale.healthcheck:main"
 modnet-export = "bgremoval.models.exporters.modnet:main"
 birefnet-export = "bgremoval.models.exporters.birefnet:main"
 modnet-build = "bgremoval.models.modnet.build_engine:main"

@@ -59,26 +59,35 @@ def _write_loop(session: TensorRTSession, config: ModNetRuntimeConfig, out_sink)
 
 
 def run_modnet_loopback(config: ModNetRuntimeConfig) -> None:
+    try:
+        import pyvirtualcam
+    except ImportError as exc:
+        raise RuntimeError(
+            "MODNet loopback output requires pyvirtualcam. Install it with `pip install -e '.[virtualcam]'`."
+        ) from exc
+
     session = load_engine(
         config.engine_path,
         input_shapes={"input": (1, 3, config.height, config.width)},
     )
-    out_cam = cv2.VideoWriter(
-        config.v4l2_device,
-        cv2.CAP_V4L2,
-        cv2.VideoWriter_fourcc(*"YUYV"),
-        config.fps,
-        (config.width, config.height),
-        True,
+    out_cam = pyvirtualcam.Camera(
+        width=config.width,
+        height=config.height,
+        fps=config.fps,
+        device=config.v4l2_device,
     )
-    if not out_cam.isOpened():
-        raise RuntimeError(f"Cannot open {config.v4l2_device} (v4l2loopback)")
-
     logger.info("Running MODNet loopback to %s", config.v4l2_device)
     try:
-        _write_loop(session, config, lambda rgba: out_cam.write(cv2.cvtColor(rgba, cv2.COLOR_BGRA2BGR)))
+        _write_loop(
+            session,
+            config,
+            lambda rgba: (
+                out_cam.send(cv2.cvtColor(rgba, cv2.COLOR_BGRA2RGB)),
+                out_cam.sleep_until_next_frame(),
+            ),
+        )
     finally:
-        out_cam.release()
+        out_cam.close()
         session.close()
 
 

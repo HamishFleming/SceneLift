@@ -28,6 +28,7 @@ modnet-build --onnx-path src/bgremoval/models/weights/modnet/onnx/model.onnx --e
 
 Repeated builds are faster when the TensorRT timing cache is reused. By default the build step reads and writes a cache next to the engine file, for example `src/bgremoval/models/weights/modnet/modnet.engine.timing-cache`. You can override that path with `--timing-cache-path` or disable it entirely with `--no-timing-cache`.
 If you want multiple engines or shapes to share a cache directory, use `--cache-dir` instead of a single cache file path.
+If you are setting up both TensorRT backends at once, `bgremoval-trt-build-all` will run the default MODNet build and the BEN2 build-all pass in one command.
 
 ## INT8 build
 
@@ -49,6 +50,9 @@ The builder writes an INT8 calibration cache next to the engine by default, for 
 modnet-run --engine-path src/bgremoval/models/weights/modnet/modnet.engine --mode loopback
 ```
 
+`--engine-path` must point at a TensorRT engine file such as `modnet.engine`, not the source ONNX file.
+The loopback runtime now uses `pyvirtualcam` for the virtual-camera sink, matching the top-level `bgremoval --live` path instead of relying on OpenCV's direct V4L2 writer.
+
 For OBS or any virtual-camera workflow, the top-level CLI uses the same live pipeline:
 
 ```bash
@@ -60,6 +64,8 @@ If you want to target a custom engine or shape, switch to `modnet-trt` and pass 
 ```bash
 bgremoval --input camera:0 --output virtualcam --method modnet-trt --engine-path src/bgremoval/models/weights/modnet/modnet.engine --width 512 --height 512 --live
 ```
+
+If you are trying to push live throughput much higher, rebuild MODNet at a smaller TensorRT input shape such as `256x256` and run the live path with matching `--width` and `--height`. That is the first practical lever for moving from mid-teens FPS toward higher live rates.
 
 To run a different engine file, point `--engine-path` at it directly:
 
@@ -87,6 +93,7 @@ modnet-zero-copy --engine-path src/bgremoval/models/weights/modnet/modnet.engine
 - The TensorRT helper layer lives in `src/bgremoval/models/tensorrt/`.
 - The ONNX export entry point now lives in `src/bgremoval/models/exporters/modnet.py`; `src/bgremoval/models/modnet/export_onnx.py` remains as a compatibility shim.
 - The runtime stays local and loads the engine once.
+- The loopback runtime requires `pyvirtualcam` plus a writable `v4l2loopback` device. It now uses the same virtual-camera sink path as the top-level live CLI, which is more reliable here than OpenCV's direct V4L2 writer.
 - The TensorRT session now creates and owns the active PyCUDA device context before it allocates buffers or streams.
 - The TensorRT session now destroys TensorRT objects while the CUDA context is still current, then detaches the CUDA context on shutdown so healthcheck and benchmark runs exit cleanly.
 - `bgremoval-healthcheck` now closes the remover on success as well as failure, so a successful TensorRT healthcheck does not leave the CUDA context alive until process exit.
@@ -98,3 +105,4 @@ modnet-zero-copy --engine-path src/bgremoval/models/weights/modnet/modnet.engine
 - `modnet-build` accepts `--cache-dir` for shared timing-cache storage.
 - Xenova/modnet is the preferred ONNX source for this path.
 - The build step now reads the source repo and ONNX filename from the model registry metadata.
+- If your target is a true `60 FPS` virtual camera, the current `512x512` MODNet TensorRT path may still be too heavy on this hardware. The next steps are a smaller MODNet engine shape or a lighter backend such as `mediapipe-selfie-segmentation`.

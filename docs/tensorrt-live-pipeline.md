@@ -40,6 +40,7 @@ The preferred layout is:
 Recommended repository structure:
 
 - `src/bgremoval/models/tensorrt/`
+- `src/bgremoval/models/tensorrt/build_all.py`
 - `src/bgremoval/models/exporters/modnet.py`
 - `src/bgremoval/models/modnet/build_engine.py`
 - `src/bgremoval/models/modnet/runtime.py`
@@ -57,5 +58,7 @@ The existing Python package already supports:
 - file and JSON logging
 
 The repository now includes a TensorRT helper layer and a MODNet scaffold matching the export -> build -> runtime pattern.
+The repo also exposes `bgremoval-trt-build-all` to build the default MODNet engine plus the BEN2 shape set in one pass.
+It also exposes `bgremoval-trt-build-int8` to build the default INT8 MODNet engine plus the BEN2 INT8 shape set in one pass.
 
 The runtime creates the CUDA context from the first visible CUDA device before deserializing the engine, so the PyCUDA stream and TensorRT execution context share a valid device context.
