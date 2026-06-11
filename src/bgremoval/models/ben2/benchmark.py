@@ -60,7 +60,18 @@ def _is_shape_mismatch_error(exc: Exception) -> bool:
     )
 
 
-def _ensure_engine(size: int, engine_dir: Path, rebuild: bool, cache_dir: Path | None) -> tuple[Path, float, bool]:
+def _ensure_engine(
+    size: int,
+    engine_dir: Path,
+    rebuild: bool,
+    cache_dir: Path | None,
+    *,
+    int8: bool = False,
+    calibration_data_dir: Path | None = None,
+    calibration_cache_path: Path | None = None,
+    calibration_batch_size: int = 8,
+    calibration_max_samples: int = 32,
+) -> tuple[Path, float, bool]:
     spec = get_model_spec("ben2-trt")
     engine_path = _default_engine_path(engine_dir, size)
     should_build = rebuild or not engine_path.exists()
@@ -93,6 +104,11 @@ def _ensure_engine(size: int, engine_dir: Path, rebuild: bool, cache_dir: Path |
             model_key="ben2-trt",
             input_shape=(1, 3, size, size),
             cache_dir=cache_dir,
+            int8=int8,
+            calibration_data_dir=calibration_data_dir,
+            calibration_cache_path=calibration_cache_path,
+            calibration_batch_size=calibration_batch_size,
+            calibration_max_samples=calibration_max_samples,
         )
     )
     build_ms = (time.perf_counter() - build_start) * 1000.0
@@ -117,6 +133,29 @@ def build_parser() -> argparse.ArgumentParser:
         "--cache-dir",
         default=None,
         help="Directory for TensorRT timing caches; each size writes its own cache file there",
+    )
+    parser.add_argument("--int8", action="store_true", help="Enable INT8 calibration and engine build")
+    parser.add_argument(
+        "--calibration-data-dir",
+        default=None,
+        help="Directory containing representative calibration images for INT8 builds",
+    )
+    parser.add_argument(
+        "--calibration-cache-path",
+        default=None,
+        help="Optional path to read/write the TensorRT INT8 calibration cache",
+    )
+    parser.add_argument(
+        "--calibration-batch-size",
+        type=int,
+        default=8,
+        help="Batch size used by the INT8 calibrator",
+    )
+    parser.add_argument(
+        "--calibration-max-samples",
+        type=int,
+        default=32,
+        help="Maximum number of calibration images to use",
     )
     parser.add_argument("--iterations", type=int, default=10, help="Timed iterations per size")
     parser.add_argument("--warmup", type=int, default=2, help="Warmup iterations per size")
@@ -144,7 +183,17 @@ def main(argv: list[str] | None = None) -> int:
     for size in args.sizes:
         logger.info("shape benchmark start size=%d", size)
         try:
-            engine_path, build_ms, built = _ensure_engine(size, engine_dir, args.rebuild, cache_dir)
+            engine_path, build_ms, built = _ensure_engine(
+                size,
+                engine_dir,
+                args.rebuild,
+                cache_dir,
+                int8=args.int8,
+                calibration_data_dir=Path(args.calibration_data_dir) if args.calibration_data_dir else None,
+                calibration_cache_path=Path(args.calibration_cache_path) if args.calibration_cache_path else None,
+                calibration_batch_size=args.calibration_batch_size,
+                calibration_max_samples=args.calibration_max_samples,
+            )
             load_start = time.perf_counter()
             remover = ModNetTensorRTRemover(
                 engine_path=engine_path,

@@ -23,6 +23,23 @@ ben2-build
 The build step is registry-driven and uses the BEN2 source metadata to auto-fetch the ONNX file if it is missing.
 It also requests FP16 directly instead of relying on a TensorRT Python capability attribute that is not present in some builds.
 
+## INT8 build
+
+If you have representative calibration frames, you can build an INT8 engine for BEN2 as well:
+
+```bash
+ben2-build --int8 --calibration-data-dir input/calibration/ben2
+```
+
+For the shape benchmark and build-all helpers, pass the same flags:
+
+```bash
+ben2-build-all --int8 --calibration-data-dir input/calibration/ben2
+ben2-benchmark --input input/a.webp --int8 --calibration-data-dir input/calibration/ben2
+```
+
+The default calibration cache path is derived from the engine filename, so `ben2.engine` writes `ben2.engine.int8.cache` and `ben2-768.engine` writes `ben2-768.engine.int8.cache`.
+
 ## Run
 
 ```bash

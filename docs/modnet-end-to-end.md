@@ -29,6 +29,20 @@ modnet-build --onnx-path src/bgremoval/models/weights/modnet/onnx/model.onnx --e
 Repeated builds are faster when the TensorRT timing cache is reused. By default the build step reads and writes a cache next to the engine file, for example `src/bgremoval/models/weights/modnet/modnet.engine.timing-cache`. You can override that path with `--timing-cache-path` or disable it entirely with `--no-timing-cache`.
 If you want multiple engines or shapes to share a cache directory, use `--cache-dir` instead of a single cache file path.
 
+## INT8 build
+
+If you have representative calibration frames, you can build an INT8 engine:
+
+```bash
+modnet-build \
+  --onnx-path src/bgremoval/models/weights/modnet/onnx/model.onnx \
+  --engine-path src/bgremoval/models/weights/modnet/modnet.engine \
+  --int8 \
+  --calibration-data-dir input/calibration/modnet
+```
+
+The builder writes an INT8 calibration cache next to the engine by default, for example `src/bgremoval/models/weights/modnet/modnet.engine.int8.cache`. Use `--calibration-cache-path` if you want to store it elsewhere.
+
 ## Runtime
 
 ```bash
@@ -71,6 +85,7 @@ modnet-zero-copy --engine-path src/bgremoval/models/weights/modnet/modnet.engine
 - The top-level `bgremoval` CLI also accepts `--method modnet` as a shorthand for `modnet-trt`.
 - `modnet-run` uses the engine file passed via `--engine-path`; the top-level `bgremoval` CLI still uses the registry default engine path for `--method modnet` unless you call the model-specific runtime directly.
 - The TensorRT helper layer lives in `src/bgremoval/models/tensorrt/`.
+- The ONNX export entry point now lives in `src/bgremoval/models/exporters/modnet.py`; `src/bgremoval/models/modnet/export_onnx.py` remains as a compatibility shim.
 - The runtime stays local and loads the engine once.
 - The TensorRT session now creates and owns the active PyCUDA device context before it allocates buffers or streams.
 - The TensorRT session now destroys TensorRT objects while the CUDA context is still current, then detaches the CUDA context on shutdown so healthcheck and benchmark runs exit cleanly.

@@ -90,6 +90,29 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Directory for TensorRT timing caches; each size writes its own cache file there",
     )
+    parser.add_argument("--int8", action="store_true", help="Enable INT8 calibration and engine build")
+    parser.add_argument(
+        "--calibration-data-dir",
+        default=None,
+        help="Directory containing representative calibration images for INT8 builds",
+    )
+    parser.add_argument(
+        "--calibration-cache-path",
+        default=None,
+        help="Optional path to read/write the TensorRT INT8 calibration cache",
+    )
+    parser.add_argument(
+        "--calibration-batch-size",
+        type=int,
+        default=8,
+        help="Batch size used by the INT8 calibrator",
+    )
+    parser.add_argument(
+        "--calibration-max-samples",
+        type=int,
+        default=32,
+        help="Maximum number of calibration images to use",
+    )
     parser.add_argument("--rebuild", action="store_true", help="Rebuild each engine even if it already exists")
     parser.add_argument("--log-level", default="INFO", help="Logging level such as DEBUG, INFO, WARNING, ERROR, or CRITICAL")
     parser.add_argument("--log-file", default=None, help="Optional path to write logs to in addition to stderr")
@@ -137,6 +160,11 @@ def main(argv: list[str] | None = None) -> int:
                     model_key="ben2-trt",
                     input_shape=(1, 3, size, size),
                     cache_dir=cache_dir,
+                    int8=args.int8,
+                    calibration_data_dir=Path(args.calibration_data_dir) if args.calibration_data_dir else None,
+                    calibration_cache_path=Path(args.calibration_cache_path) if args.calibration_cache_path else None,
+                    calibration_batch_size=args.calibration_batch_size,
+                    calibration_max_samples=args.calibration_max_samples,
                 )
             )
             build_ms = (time.perf_counter() - build_start) * 1000.0

@@ -9,6 +9,7 @@ src/background_removal.egg-info/top_level.txt
 src/bgremoval/__init__.py
 src/bgremoval/__main__.py
 src/bgremoval/api.py
+src/bgremoval/calibration_set.py
 src/bgremoval/benchmark.py
 src/bgremoval/cli.py
 src/bgremoval/extract_frames.py
@@ -37,6 +38,10 @@ src/bgremoval/models/ben2/build_all.py
 src/bgremoval/models/ben2/build_engine.py
 src/bgremoval/models/ben2/fetch.py
 src/bgremoval/models/ben2/runtime.py
+src/bgremoval/models/exporters/__init__.py
+src/bgremoval/models/exporters/birefnet.py
+src/bgremoval/models/exporters/common.py
+src/bgremoval/models/exporters/modnet.py
 src/bgremoval/models/modnet/__init__.py
 src/bgremoval/models/modnet/build_engine.py
 src/bgremoval/models/modnet/export_onnx.py
@@ -46,4 +51,5 @@ src/bgremoval/models/modnet/trt_backend.py
 src/bgremoval/models/modnet/xenova.py
 src/bgremoval/models/modnet/zero_copy.py
 src/bgremoval/models/tensorrt/__init__.py
+src/bgremoval/models/tensorrt/calibration.py
 src/bgremoval/models/tensorrt/session.py

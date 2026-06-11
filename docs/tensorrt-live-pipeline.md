@@ -40,7 +40,7 @@ The preferred layout is:
 Recommended repository structure:
 
 - `src/bgremoval/models/tensorrt/`
-- `src/bgremoval/models/modnet/export_onnx.py`
+- `src/bgremoval/models/exporters/modnet.py`
 - `src/bgremoval/models/modnet/build_engine.py`
 - `src/bgremoval/models/modnet/runtime.py`
 - `src/bgremoval/models/weights/<model-name>/`

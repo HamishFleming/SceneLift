@@ -20,7 +20,11 @@ BEN2 in this repository runs through the shared TensorRT live pipeline. The main
    The BEN2 build path already requests FP16, which is usually the right default for live inference on modern NVIDIA GPUs. On TensorRT 11 builds that do not expose `BuilderFlag.FP16`, the build step will log a warning and continue without the explicit flag.
    Repeated builds are faster when the timing cache is reused. The default BEN2 build path stores a cache next to each engine file, such as `ben2.engine.timing-cache` or `ben2-768.engine.timing-cache`.
 
-3. Prefer loopback over SRT when possible.
+3. Try INT8 only with representative calibration frames.
+
+   INT8 can improve throughput further, but only when the calibration data matches your use case. Use `ben2-build --int8 --calibration-data-dir ...` and validate the output quality before relying on it for live work. The calibration cache is stored separately from the timing cache, so rebuilds can reuse both.
+
+4. Prefer loopback over SRT when possible.
 
    `ben2-run --mode loopback` avoids the extra ffmpeg encode and network transport overhead that comes with SRT.
 
@@ -33,6 +37,7 @@ BEN2 in this repository runs through the shared TensorRT live pipeline. The main
 - Smaller shapes improve speed materially but reduce edge detail.
 - SRT adds latency and CPU/GPU encode cost.
 - FP16 usually improves throughput with little quality loss, but the exact gain depends on the GPU.
+- INT8 can improve throughput again, but quality depends heavily on the calibration set.
 
 ## What to try first
 

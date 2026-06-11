@@ -176,6 +176,12 @@ Split a video into a folder of frames:
 bgremoval-extract-frames --input input/tam.mp4 --output-dir frames --format webp
 ```
 
+Prepare a calibration set from a folder of frames or sample images:
+
+```bash
+bgremoval-calibration-set --input-dir frames --output-dir input/calibration/modnet --max-samples 32
+```
+
 Run a startup healthcheck for one backend:
 
 ```bash
@@ -198,6 +204,7 @@ For the most approachable live setup, start with `modnet-trt` or `ben2-trt` and 
 - `grabcut` works out of the box and is a useful baseline.
 - `rembg` is the AI-backed path and becomes available after installing the optional extra.
 - `birefnet` loads `ZhengPeng7/BiRefNet` from Hugging Face with `transformers`, `einops`, `kornia`, `timm`, and `torchvision`.
+- `birefnet-export` converts a local BiRefNet `.pth` checkpoint to ONNX using the shared exporter framework under `src/bgremoval/models/exporters/`.
 - `u2net-human-seg` downloads `onnx/model.onnx` and `preprocessor_config.json` from `BritishWerewolf/U-2-Net-Human-Seg` and runs them through ONNXRuntime.
 - `mediapipe-selfie-segmentation` downloads `onnx/model.onnx` and `preprocessor_config.json` from `onnx-community/mediapipe_selfie_segmentation` and runs them through ONNXRuntime.
 - `modnet-trt` is the TensorRT-backed live path for MODNet-style webcam removal. The CLI also accepts `--method modnet` as a shorthand alias.
@@ -211,12 +218,15 @@ For the most approachable live setup, start with `modnet-trt` or `ben2-trt` and 
 - Logging supports console output, `--log-file`, and `--log-json`.
 - Benchmarking and healthcheck commands share the same structured logging.
 - `bgremoval-extract-frames` writes sequentially numbered `frame_000000.png` or `.webp` files to a target directory.
+- `bgremoval-calibration-set` copies a representative subset of image files into a dedicated calibration directory for TensorRT INT8 builds.
 - `bgremoval` can also process a directory of image frames directly and writes `.png` outputs into a target directory. See [`docs/directory-inputs.md`](/mnt/code/ai/background-removal/ben/docs/directory-inputs.md).
 - `ben2-benchmark` compares the default BEN2 square shapes `1024`, `768`, and `512` and builds missing engines on demand.
 - `ben2-build-all` builds the default BEN2 shape set in one pass and reuses a shared timing-cache file between shapes.
 - `modnet-build` and `ben2-build` accept `--cache-dir` for timing-cache reuse without managing individual cache file paths.
 - The model registry lives under `src/bgremoval/models/` and is the place to add new AI backends and their weights.
+- All ONNX exporter implementations now live under `src/bgremoval/models/exporters/`; older paths remain as shims for compatibility.
 - MODNet TensorRT now uses `Xenova/modnet` as the ONNX source; use `modnet-fetch` before `modnet-build`.
 - `modnet-build` will auto-fetch the Xenova ONNX file if it is missing unless you disable that with `--no-auto-fetch-onnx`.
 - `ben2-build` will auto-fetch `onnx-community/BEN2-ONNX` when the ONNX file is missing.
+- TensorRT INT8 is available for `modnet-trt` and `ben2-trt`; see [`docs/int8-quantization.md`](/mnt/code/ai/background-removal/ben/docs/int8-quantization.md) for the calibration workflow and cache layout.
 - Canonical live backend: `modnet-trt` on TensorRT.

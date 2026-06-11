@@ -4,9 +4,17 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 
+import cv2
+import numpy as np
+
 from ...logging_controller import get_logger
 from ..hf_onnx import HFOnnxDownloadConfig, download_hf_onnx
 from ..registry import get_model_spec
+from ..tensorrt.calibration import (
+    build_calibration_batches,
+    collect_image_paths,
+    create_image_folder_int8_calibrator,
+)
 from ..tensorrt.session import save_engine
 
 
@@ -19,11 +27,16 @@ class ModNetEngineConfig:
     engine_path: Path
     timing_cache_path: Path | None = None
     cache_dir: Path | None = None
+    calibration_data_dir: Path | None = None
+    calibration_cache_path: Path | None = None
     model_key: str = "modnet-trt"
     input_name: str = "input"
     input_shape: tuple[int, int, int, int] = (1, 3, 512, 512)
     workspace_size: int = 2 << 30
     fp16: bool = True
+    int8: bool = False
+    calibration_batch_size: int = 8
+    calibration_max_samples: int = 32
     use_timing_cache: bool = True
     auto_fetch_onnx: bool = True
 
@@ -55,12 +68,77 @@ def _default_timing_cache_path(engine_path: Path) -> Path:
     return engine_path.with_suffix(engine_path.suffix + ".timing-cache")
 
 
+def _default_calibration_cache_path(engine_path: Path) -> Path:
+    return engine_path.with_suffix(engine_path.suffix + ".int8.cache")
+
+
 def _resolve_timing_cache_path(config: ModNetEngineConfig) -> Path:
     if config.timing_cache_path is not None:
         return config.timing_cache_path
     if config.cache_dir is not None:
         return config.cache_dir / f"{config.engine_path.name}.timing-cache"
     return _default_timing_cache_path(config.engine_path)
+
+
+def _resolve_calibration_cache_path(config: ModNetEngineConfig) -> Path:
+    if config.calibration_cache_path is not None:
+        return config.calibration_cache_path
+    if config.cache_dir is not None:
+        return config.cache_dir / f"{config.engine_path.name}.int8.cache"
+    return _default_calibration_cache_path(config.engine_path)
+
+
+def _preprocess_calibration_image(path: Path, input_shape: tuple[int, int, int, int]) -> np.ndarray:
+    height = input_shape[2]
+    width = input_shape[3]
+    frame_bgr = cv2.imread(str(path), cv2.IMREAD_COLOR)
+    if frame_bgr is None:
+        raise RuntimeError(f"Could not read calibration image: {path}")
+    resized = cv2.resize(frame_bgr, (width, height), interpolation=cv2.INTER_AREA)
+    rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB).astype(np.float32) / 255.0
+    rgb = (rgb - 0.5) / 0.5
+    return np.transpose(rgb, (2, 0, 1)).astype(np.float32)
+
+
+def _build_int8_calibrator(config: ModNetEngineConfig):
+    if not config.int8:
+        return None
+
+    calibration_cache_path = _resolve_calibration_cache_path(config)
+    calibration_data_dir = config.calibration_data_dir
+    if calibration_data_dir is None and not calibration_cache_path.exists():
+        raise RuntimeError(
+            "INT8 calibration was requested but no calibration data directory or existing calibration cache was provided. "
+            "Pass --calibration-data-dir with representative images or --calibration-cache-path pointing to a prior cache."
+        )
+
+    batches: list[np.ndarray] = []
+    if calibration_data_dir is not None:
+        image_paths = collect_image_paths(calibration_data_dir, max_samples=config.calibration_max_samples)
+        if not image_paths and not calibration_cache_path.exists():
+            raise RuntimeError(f"No calibration images were found in {calibration_data_dir}")
+        if image_paths:
+            batches = build_calibration_batches(
+                image_paths,
+                batch_size=config.calibration_batch_size,
+                preprocess=lambda path: _preprocess_calibration_image(path, config.input_shape),
+            )
+            if not batches and not calibration_cache_path.exists():
+                raise RuntimeError(
+                    "Calibration images were found, but there were not enough samples to form a full INT8 batch. "
+                    f"Increase --calibration-max-samples or reduce --calibration-batch-size (current batch size: {config.calibration_batch_size})."
+                )
+
+    if not batches and not calibration_cache_path.exists():
+        raise RuntimeError(
+            "INT8 calibration needs at least one full batch of representative samples or an existing calibration cache."
+        )
+
+    return create_image_folder_int8_calibrator(
+        batches,
+        batch_size=config.calibration_batch_size,
+        cache_path=calibration_cache_path,
+    )
 
 
 def build_engine_from_onnx(config: ModNetEngineConfig) -> Path:
@@ -114,6 +192,23 @@ def build_engine_from_onnx(config: ModNetEngineConfig) -> Path:
                     "TensorRT %s does not expose BuilderFlag.FP16 in this environment; continuing without the explicit FP16 flag",
                     getattr(trt, "__version__", "unknown"),
                 )
+        calibrator = None
+        if config.int8:
+            int8_flag = getattr(trt.BuilderFlag, "INT8", None)
+            if int8_flag is None:
+                raise RuntimeError(f"TensorRT {getattr(trt, '__version__', 'unknown')} does not expose BuilderFlag.INT8")
+            builder_config.set_flag(int8_flag)
+            calibrator = _build_int8_calibrator(config)
+            if hasattr(builder_config, "int8_calibrator"):
+                builder_config.int8_calibrator = calibrator
+            elif hasattr(builder_config, "set_int8_calibrator"):
+                builder_config.set_int8_calibrator(calibrator)
+            else:
+                raise RuntimeError("TensorRT builder config does not expose an INT8 calibrator setter")
+            logger.info(
+                "Requested INT8 engine build with calibration cache %s",
+                _resolve_calibration_cache_path(config),
+            )
 
         timing_cache_path = _resolve_timing_cache_path(config)
         if config.use_timing_cache:
@@ -179,6 +274,29 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--workspace-gb", type=int, default=2, help="TensorRT workspace size in GB")
     parser.add_argument("--fp16", action="store_true", help="Enable FP16 if supported")
     parser.add_argument("--no-fp16", action="store_true", help="Disable FP16")
+    parser.add_argument("--int8", action="store_true", help="Enable INT8 calibration and engine build")
+    parser.add_argument(
+        "--calibration-data-dir",
+        default=None,
+        help="Directory containing representative calibration images for INT8 builds",
+    )
+    parser.add_argument(
+        "--calibration-cache-path",
+        default=None,
+        help="Optional path to read/write the TensorRT INT8 calibration cache",
+    )
+    parser.add_argument(
+        "--calibration-batch-size",
+        type=int,
+        default=8,
+        help="Batch size used by the INT8 calibrator",
+    )
+    parser.add_argument(
+        "--calibration-max-samples",
+        type=int,
+        default=32,
+        help="Maximum number of calibration images to use",
+    )
     parser.add_argument(
         "--timing-cache-path",
         default=None,
@@ -214,6 +332,11 @@ def main(argv: list[str] | None = None) -> int:
             input_shape=args.input_shape,
             workspace_size=args.workspace_gb << 30,
             fp16=fp16,
+            int8=args.int8,
+            calibration_data_dir=Path(args.calibration_data_dir) if args.calibration_data_dir else None,
+            calibration_cache_path=Path(args.calibration_cache_path) if args.calibration_cache_path else None,
+            calibration_batch_size=args.calibration_batch_size,
+            calibration_max_samples=args.calibration_max_samples,
             timing_cache_path=Path(args.timing_cache_path) if args.timing_cache_path else None,
             cache_dir=Path(args.cache_dir) if args.cache_dir else None,
             use_timing_cache=not args.no_timing_cache,
