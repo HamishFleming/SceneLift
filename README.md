@@ -30,26 +30,41 @@ pip install -e ".[hf]"
 
 ## Examples
 
-| Before | After |
-|---|---|
+| Before                                               | After                                              |
+| ---------------------------------------------------- | -------------------------------------------------- |
 | ![Before](docs/assets/sliders/upscaling1/before.png) | ![After](docs/assets/sliders/upscaling1/after.png) |
 
 ![Upscaling comparison](docs/assets/sliders/upscaling1/comparison.gif)
 
-
-<!-- | Before | After |
-|---|---|
+<!--
+|                                                      | Before                                             | After |
+| ---------------------------------------------------- | -------------------------------------------------- |
 | ![Before](docs/assets/sliders/upscaling2/before.jpg) | ![After](docs/assets/sliders/upscaling2/after.jpg) |
 
 ![Upscaling comparison](docs/assets/sliders/upscaling2/comparison.gif) -->
 
-| Before | After |
-|---|---|
-| ![Before](docs/assets/sliders/upscaling3/before.webp) | ![After](docs/assets/sliders/upscaling3/after.webp) |
-
 ![Upscaling comparison](docs/assets/sliders/upscaling3/comparison-p.gif)
 
+| Before                                                                   | After                                                           |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| ![Before](docs/assets/sliders/upscaling3/before.webp)                    | ![After](docs/assets/sliders/upscaling3/after.webp)             |
+| ![Before](docs/assets/sliders/upscaling3/before-face-preview.png)        | ![After](docs/assets/sliders/upscaling3/after-face-preview.png) |
 
+<!--
+<table>
+  <tr>
+    <th width="50%">Before</th>
+    <th width="50%">After</th>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/assets/sliders/upscaling3/before-face-preview.png" width="100%">
+    </td>
+    <td width="50%">
+      <img src="docs\assets\sliders\upscaling3\before-face-preview-after.png\before-face-preview_out.png" width="100%">
+    </td>
+  </tr>
+</table> -->
 
 
 ## Quick Start
